@@ -381,7 +381,7 @@ void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *pa
 
     json_object *jarray_authority = json_object_new_array();
     json_object_object_add(packet_object, "authority", jarray_authority);
-    
+
     json_object *jarray_additional = json_object_new_array();
     json_object_object_add(packet_object, "additional", jarray_additional);
 
