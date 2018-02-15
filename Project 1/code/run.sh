@@ -2,5 +2,5 @@
 
 sudo apt install libpcap-dev libjson-c-dev cmake
 
-cmake .
+cmake . && make
 ./code $1 $2
