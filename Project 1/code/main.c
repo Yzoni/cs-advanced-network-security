@@ -20,6 +20,8 @@
 
 #define SIZE_DNS_HEADER 12
 
+#define CHECK_FIRST_TWO_BITS(n) (0xC0 & dns_start)
+
 /*
  * IP and TCP headers taken from:
  *
@@ -216,14 +218,14 @@ void write_dns_header_json(json_object *packet_object, const struct dns_header *
     json_object_object_add(packet_object, "header", dns_header);
 }
 
+const char *TYPES[17] = {"", "A", "NS", "MD", "MF",
+                         "CNAME", "SOA", "MB", "MG",
+                         "MR", "NULL", "WKS", "PTR",
+                         "HINFO", "MINFO", "MX", "TXT"};
+
+const char *CLASSES[5] = {"", "IN", "CS", "CH", "HS"};
+
 void write_dns_question_record_json(json_object *jarray, struct dns_question_record dns_qr) {
-
-    const char *TYPES[17] = {"", "A", "NS", "MD", "MF",
-                             "CNAME", "SOA", "MB", "MG",
-                             "MR", "NULL", "WKS", "PTR",
-                             "HINFO", "MINFO", "MX", "TXT"};
-
-    const char *CLASSES[5] = {"", "IN", "CS", "CH", "HS"};
 
     json_object *question = json_object_new_object();
     json_object *name = json_object_new_string(dns_qr.name);
@@ -236,6 +238,37 @@ void write_dns_question_record_json(json_object *jarray, struct dns_question_rec
     json_object_array_add(jarray, question);
 }
 
+void write_dns_resource_record_json(json_object *jarray, struct dns_resource_record dns_rc) {
+
+    json_object *resource = json_object_new_object();
+    json_object *name = json_object_new_string(dns_rc.name);
+    json_object *type = json_object_new_string(TYPES[dns_rc.type]);
+    json_object *class = json_object_new_string(CLASSES[dns_rc.class]);
+    json_object *ttl = json_object_new_int(dns_rc.ttl);
+    json_object_object_add(resource, "qname", name);
+    json_object_object_add(resource, "qtype", type);
+    json_object_object_add(resource, "qclass", class);
+    json_object_object_add(resource, "ttl", ttl);
+
+    json_object_array_add(jarray, resource);
+}
+
+/*
+ * Tests whether a name is a label or a offset to a label
+ *  - Label when has two leading zero bits
+ *  - Offset when has two leading one bits
+ */
+int check_first_two_bits(u_char dns_start) {
+    printf("\n");
+    print_bits(dns_start);
+    printf("\n");
+    print_bits(0xC0);
+    printf("\n");
+    print_bits((unsigned char) (0xC0 & dns_start));
+    printf("\n");
+    return (0xC0 & dns_start);
+}
+
 void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *packet) {
     static int packet_counter = 0;
     int i;
@@ -246,9 +279,7 @@ void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *pa
     const struct udp_header *udp;
     const struct dns_header *dns;
     struct dns_question_record dns_qr;
-//    const struct dns_answer_record *dns_ar;
-//    const struct dns_auth_record *dns_authr;
-//    const struct dns_addt_record *dns_addtr;
+    struct dns_resource_record dns_rc;
 
     packet_counter++;
     printf("\nPacket number %d:\n", packet_counter);
@@ -287,34 +318,65 @@ void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *pa
     write_dns_header_json(packet_object, dns);
 
     json_object *jarray_questions = json_object_new_array();
+    u_char *dns_qr_start = (u_char *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER +
+                                       SIZE_DNS_HEADER);
     for (i = 0; i < ntohs(dns->dns_question_count); i++) {
-        char label_buffer[30] = {0};
 
-        u_char *dns_qr_start = (u_char *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER +
-                                           SIZE_DNS_HEADER);
-        u_char *next = (u_char *) parse_labels(dns_qr_start, label_buffer);
-
-        dns_qr.name = label_buffer;
-        dns_qr.type = (uint16_t) (*next << 8 | *++next);
-        dns_qr.class = (uint16_t) (*++next << 8 | *++next);
-
+        if (check_first_two_bits(*dns_qr_start) > 0) {
+            // TODO get label from hash
+        } else {
+            char label_buffer[63] = {0};
+            dns_qr_start = (u_char *) parse_labels(dns_qr_start, label_buffer);
+            dns_qr.name = label_buffer;
+            dns_qr.type = (uint16_t) (*dns_qr_start << 8 | *++dns_qr_start);
+            dns_qr.class = (uint16_t) (*++dns_qr_start << 8 | *++dns_qr_start);
+            // TODO add label to hash
+        }
         write_dns_question_record_json(jarray_questions, dns_qr);
     }
     json_object_object_add(packet_object, "question", jarray_questions);
 
+    json_object *jarray_answers = json_object_new_array();
     for (i = 0; i < ntohs(dns->dns_answer_count); i++) {
 
+        // Increment to next start
+        ++dns_qr_start;
+
+        if (check_first_two_bits(*dns_qr_start) > 0) {
+            printf("\nentered\n");
+            printf("\n");
+            dns_rc.name = "TODO";  // TODO get label from hash
+            ++dns_qr_start; // TODO
+            ++dns_qr_start; // TODO
+
+            dns_rc.type = (uint16_t) (*dns_qr_start << 8 | *++dns_qr_start);
+            dns_rc.class = (uint16_t) (*++dns_qr_start << 8 | *++dns_qr_start);
+            dns_rc.ttl = (uint32_t) (*++dns_qr_start << 32 | *++dns_qr_start << 16 | *++dns_qr_start << 8 | *++dns_qr_start);
+
+            dns_rc.rdlength = (uint16_t) (*++dns_qr_start << 8 | *++dns_qr_start);
+            for (int j =0; j < dns_rc.rdlength; j++) {
+                ++dns_qr_start; // TODO
+            }
+
+        } else {
+            char label_buffer[63] = {0};
+            dns_qr_start = (u_char *) parse_labels(dns_qr_start, label_buffer);
+            dns_rc.name = label_buffer;
+            dns_rc.type = (uint16_t) (*dns_qr_start << 8 | *++dns_qr_start);
+            dns_rc.class = (uint16_t) (*++dns_qr_start << 8 | *++dns_qr_start);
+            // TODO add label to hash
+        }
+        write_dns_resource_record_json(jarray_answers, dns_rc);
     }
+    json_object_object_add(packet_object, "answers", jarray_answers);
 
     // Add complete packet data to json
     json_object_object_add((struct json_object *) jobj, packet_count_str, packet_object);
-
-
 }
 
 void parse_capture(pcap_t *handle, char *out_file) {
     json_object *jobj = json_object_new_object();
-    pcap_loop(handle, 10, got_packet, (u_char *) jobj);
+    pcap_loop(handle, 4, got_packet, (u_char *) jobj);
 
     json_object_to_file(out_file, jobj);
     printf("The json object created: %sn", json_object_to_json_string(jobj));
