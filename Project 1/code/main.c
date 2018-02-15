@@ -80,6 +80,15 @@ struct dns_question_record {
     uint16_t class;
 };
 
+struct dns_resource_record {
+    char *name;
+    uint16_t type;
+    uint16_t class;
+    uint32_t ttl;
+    uint16_t rdlength;
+    char *rdata;
+};
+
 struct dns_header {
     uint16_t dns_query_id;
     uint8_t dns_rd : 1;
@@ -110,7 +119,7 @@ void print_bits(unsigned char octet) {
     }
 }
 
-uint16_t parse_labels(const u_char *dns_qr, char *label_buffer) {
+const u_char *parse_labels(const u_char *dns_qr, char *label_buffer) {
     const u_char *current_octet = dns_qr + 1;
     const u_char *next_octet = dns_qr + 2;
 
@@ -132,14 +141,14 @@ uint16_t parse_labels(const u_char *dns_qr, char *label_buffer) {
     }
     label_buffer[label_length] = *current_octet;
     printf("%s", label_buffer);
-    return label_length;
+
+    return ++next_octet;
 }
 
-void write_tcp_dns(json_object *packet_object,
-                   const struct ip_header *ip,
-                   const struct tcp_header *tcp,
-                   const struct dns_header *dns) {
-    // Fill ip header
+void write_tcp_json(json_object *packet_object,
+                    const struct ip_header *ip,
+                    const struct tcp_header *tcp) {
+
     json_object *dns_packet_ip = json_object_new_object();
     json_object *srcip = json_object_new_string(inet_ntoa(ip->ip_src));
     json_object *srcport = json_object_new_int(ntohs(tcp->th_sport));
@@ -150,15 +159,13 @@ void write_tcp_dns(json_object *packet_object,
     json_object_object_add(dns_packet_ip, "dstip", dstip);
     json_object_object_add(dns_packet_ip, "dstport", dstport);
 
-    json_object *dns_header = json_object_new_object();
+    json_object_object_add(packet_object, "ipv4", dns_packet_ip);
 }
 
-void write_udp_dns_json(json_object *packet_object,
-                        const struct ip_header *ip,
-                        const struct udp_header *udp,
-                        const struct dns_header *dns) {
+void write_udp_json(json_object *packet_object,
+                    const struct ip_header *ip,
+                    const struct udp_header *udp) {
 
-    // Fill ip header
     json_object *dns_packet_ip = json_object_new_object();
     json_object *srcip = json_object_new_string(inet_ntoa(ip->ip_src));
     json_object *srcport = json_object_new_int(ntohs(udp->th_sport));
@@ -169,7 +176,10 @@ void write_udp_dns_json(json_object *packet_object,
     json_object_object_add(dns_packet_ip, "dstip", dstip);
     json_object_object_add(dns_packet_ip, "dstport", dstport);
 
-    // Fill DNS header
+    json_object_object_add(packet_object, "ipv4", dns_packet_ip);
+}
+
+void write_dns_header_json(json_object *packet_object, const struct dns_header *dns) {
     json_object *dns_header = json_object_new_object();
     json_object *id = json_object_new_int(ntohs(dns->dns_query_id));
     json_object *qr = json_object_new_boolean(ntohs(dns->dns_qr));
@@ -198,14 +208,27 @@ void write_udp_dns_json(json_object *packet_object,
     json_object_object_add(dns_header, "ancount", ancount);
     json_object_object_add(dns_header, "arcount", arcount);
 
-    // Fill questions
-    // Fill answers
-    // Fill authority
-    // Fill additional
-
-    // Fill packet
-    json_object_object_add(packet_object, "ipv4", dns_packet_ip);
     json_object_object_add(packet_object, "header", dns_header);
+}
+
+void write_dns_question_record_json(json_object *jarray, struct dns_question_record dns_qr) {
+
+    const char *TYPES[17] = {"", "A", "NS", "MD", "MF",
+                             "CNAME", "SOA", "MB", "MG",
+                             "MR", "NULL", "WKS", "PTR",
+                             "HINFO", "MINFO", "MX", "TXT"};
+
+    const char *CLASSES[5] = {"", "IN", "CS", "CH", "HS"};
+
+    json_object *question = json_object_new_object();
+    json_object *name = json_object_new_string(dns_qr.name);
+    json_object *type = json_object_new_string(TYPES[dns_qr.type]);
+    json_object *class = json_object_new_string(CLASSES[dns_qr.class]);
+    json_object_object_add(question, "qname", name);
+    json_object_object_add(question, "qtype", type);
+    json_object_object_add(question, "qclass", class);
+
+    json_object_array_add(jarray, question);
 }
 
 void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *packet) {
@@ -217,18 +240,17 @@ void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *pa
     const struct tcp_header *tcp;
     const struct udp_header *udp;
     const struct dns_header *dns;
-//    const struct dns_question_record *dns_qr;
+    struct dns_question_record dns_qr;
 //    const struct dns_answer_record *dns_ar;
 //    const struct dns_auth_record *dns_authr;
 //    const struct dns_addt_record *dns_addtr;
-    char label_buffer[30] = {0};
 
     packet_counter++;
     printf("\nPacket number %d:\n", packet_counter);
 
     // Init packet in json
     json_object *packet_object = json_object_new_object();
-    char packet_count_str[80];
+    char packet_count_str[63];
     sprintf(packet_count_str, "packet_%d", packet_counter);
     puts(packet_count_str);
 
@@ -239,30 +261,50 @@ void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *pa
         case IPPROTO_TCP:
             printf("Protocol: TCP\n");
             tcp = (struct tcp_header *) (packet + SIZE_ETHERNET + size_ip);
-//            write_udp_dns_json(packet_object, ip, tcp, dns);
-            return;
+            dns = (struct dns_header *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER); // TODO
+
+            write_tcp_json(packet_object, ip, tcp);
+
+            break;
         case IPPROTO_UDP:
             printf("Protocol: UDP\n");
             udp = (struct udp_header *) (packet + SIZE_ETHERNET + size_ip);
             dns = (struct dns_header *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER);
 
-            write_udp_dns_json(packet_object, ip, udp, dns);
-            json_object_object_add((struct json_object *) jobj, packet_count_str, packet_object);
+            write_udp_json(packet_object, ip, udp);
 
-            for (i = 0; i < ntohs(dns->dns_question_count); i++) {
-                u_char *dns_qr = (u_char *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER +
-                                             SIZE_DNS_HEADER);
-                parse_labels(dns_qr, label_buffer);
-            }
-            for (i = 0; i < ntohs(dns->dns_answer_count); i++) {
-
-            }
-
-            return;
+            break;
         default:
             printf("Protocol: Non-Relevant\n");
             return;
     }
+
+    write_dns_header_json(packet_object, dns);
+
+    json_object *jarray_questions = json_object_new_array();
+    for (i = 0; i < ntohs(dns->dns_question_count); i++) {
+        char label_buffer[30] = {0};
+
+        u_char *dns_qr_start = (u_char *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER +
+                                           SIZE_DNS_HEADER);
+        u_char *next = (u_char *) parse_labels(dns_qr_start, label_buffer);
+
+        dns_qr.name = label_buffer;
+        dns_qr.type = (uint16_t) (*next << 8 | *++next);
+        dns_qr.class = (uint16_t) (*++next << 8 | *++next);
+
+        write_dns_question_record_json(jarray_questions, dns_qr);
+    }
+    json_object_object_add(packet_object, "question", jarray_questions);
+
+    for (i = 0; i < ntohs(dns->dns_answer_count); i++) {
+
+    }
+
+    // Add complete packet data to json
+    json_object_object_add((struct json_object *) jobj, packet_count_str, packet_object);
+
+
 }
 
 void parse_capture(pcap_t *handle, char *out_file) {
