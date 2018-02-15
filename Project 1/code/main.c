@@ -379,6 +379,12 @@ void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *pa
     }
     json_object_object_add(packet_object, "answers", jarray_answers);
 
+    json_object *jarray_authority = json_object_new_array();
+    json_object_object_add(packet_object, "authority", jarray_authority);
+    
+    json_object *jarray_additional = json_object_new_array();
+    json_object_object_add(packet_object, "additional", jarray_additional);
+
     // Add complete packet data to json
     json_object_object_add((struct json_object *) jobj, packet_count_str, packet_object);
 }
