@@ -180,29 +180,34 @@ void write_udp_json(json_object *packet_object,
 }
 
 void write_dns_header_json(json_object *packet_object, const struct dns_header *dns) {
+
+    const char *OPCODES[3] = {"QUERY", "IQUERY", "STATUS"};
+    const char *RCODES[6] = {"NOERROR", "FORMATERROR", "SERVERFAILURE",
+                             "NAMEERROR", "NOTIMPLEMENTED", "REFUSED"};
+
     json_object *dns_header = json_object_new_object();
     json_object *id = json_object_new_int(ntohs(dns->dns_query_id));
     json_object *qr = json_object_new_boolean(ntohs(dns->dns_qr));
-//    json_object *opcode = json_object_new_string(dns->dns_opcode);
+    json_object *opcode = json_object_new_string(OPCODES[dns->dns_opcode]);
     json_object *aa = json_object_new_boolean(ntohs(dns->dns_aa));
     json_object *tc = json_object_new_boolean(ntohs(dns->dns_tc));
     json_object *rd = json_object_new_boolean(ntohs(dns->dns_rd));
     json_object *ra = json_object_new_boolean(ntohs(dns->dns_ra));
-//    json_object *rcode = json_object_new_string(ntohs(dns->dns_rcode));
+    json_object *rcode = json_object_new_string(RCODES[dns->dns_rcode]);
     json_object *qdcount = json_object_new_int(ntohs(dns->dns_question_count));
     json_object *nscount = json_object_new_int(ntohs(dns->dns_answer_count));
     json_object *ancount = json_object_new_int(ntohs(dns->dns_auth_count));
     json_object *arcount = json_object_new_int(ntohs(dns->dns_addt_count));
     json_object_object_add(dns_header, "id", id);
     json_object_object_add(dns_header, "qr", qr);
-//    json_object_object_add(dns_header, "qr", opcode);
+    json_object_object_add(dns_header, "opcode", opcode);
     json_object_object_add(dns_header, "aa", aa);
-//    json_object_object_add(dns_header, "ad", ad);
+//    json_object_object_add(dns_header, "ad", ad); // not in rfc1035?
     json_object_object_add(dns_header, "tc", tc);
     json_object_object_add(dns_header, "rd", rd);
     json_object_object_add(dns_header, "ra", ra);
-//    json_object_object_add(dns_header, "cd", cd);
-//    json_object_object_add(dns_header, "rcode", rcode);
+//    json_object_object_add(dns_header, "cd", cd); // not in rfc1035?
+    json_object_object_add(dns_header, "rcode", rcode);
     json_object_object_add(dns_header, "qdcount", qdcount);
     json_object_object_add(dns_header, "nscount", nscount);
     json_object_object_add(dns_header, "ancount", ancount);
