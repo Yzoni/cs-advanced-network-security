@@ -297,16 +297,25 @@ void got_packet(u_char *jobj, const struct pcap_pkthdr *header, const u_char *pa
         case IPPROTO_TCP:
             printf("Protocol: TCP\n");
             tcp = (struct tcp_header *) (packet + SIZE_ETHERNET + size_ip);
+
+            if (ntohs(tcp->th_dport) != 53 && ntohs(tcp->th_sport) != 53) {
+                printf("Non standard DNS port not supported");
+                return;
+            }
+
             dns = (struct dns_header *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER); // TODO
-
             write_tcp_json(packet_object, ip, tcp);
-
             break;
         case IPPROTO_UDP:
             printf("Protocol: UDP\n");
             udp = (struct udp_header *) (packet + SIZE_ETHERNET + size_ip);
-            dns = (struct dns_header *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER);
 
+            if (ntohs(udp->th_dport) != 53 && ntohs(udp->th_sport) != 53) {
+                printf("Non standard DNS port not supported");
+                return;
+            }
+
+            dns = (struct dns_header *) (packet + SIZE_ETHERNET + size_ip + SIZE_UDP_HEADER);
             write_udp_json(packet_object, ip, udp);
 
             break;
