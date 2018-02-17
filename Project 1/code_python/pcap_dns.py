@@ -89,18 +89,18 @@ def parse_tcp(buffer):
 
     return tcp_header, tcp_header_size
 
+
 def parse_dns(buffer):
     dns = dict()
 
     dns_header = dict()
     dns_header['id'] = struct.unpack('>H', bytes(buffer[:2]))[0]
-
-    dns_header['difficult'] = struct.unpack('>H', bytes(buffer[2:4]))[0]
-    dns_header['qr'] = bit_enabled(buffer[3], 7)
+    dns_header['qr'] = bit_enabled(buffer[2], 7)
     dns_header['opcode'] = OPCODES[parse_4_bit_opcode(buffer[3])]
-    dns_header['aa'] = bit_enabled(buffer[3], 2)
-    dns_header['tc'] = bit_enabled(buffer[3], 1)
-    dns_header['rd'] = bit_enabled(buffer[3], 0)
+    dns_header['aa'] = bit_enabled(buffer[2], 2)
+    dns_header['tc'] = bit_enabled(buffer[2], 1)
+    dns_header['rd'] = bit_enabled(buffer[2], 0)
+    dns_header['ra'] = bit_enabled(buffer[3], 7)
     dns_header['rcode'] = RCODES[parse_4_bit_rcode(buffer[4])]
     dns_header['qdcount'] = struct.unpack('>H', bytes(buffer[4:6]))[0]
     dns_header['ancount'] = struct.unpack('>H', bytes(buffer[6:8]))[0]
@@ -117,7 +117,7 @@ def parse_dns(buffer):
             questions.append(question)
             dns['question'] = questions
     except:
-        print('    Failed to parse questions')
+        print('    Failed to parse questions, packet will not parse further')
         return dns
 
     try:
@@ -127,7 +127,7 @@ def parse_dns(buffer):
             answers.append(answer)
         dns['answers'] = answers
     except:
-        print('    Failed to parse answers')
+        print('    Failed to parse answers, packet will not parse further')
         return dns
 
     try:
@@ -137,7 +137,7 @@ def parse_dns(buffer):
             authorities.append(authority)
         dns['authorities'] = authorities
     except:
-        print('    Failed to parse authorities')
+        print('    Failed to parse authorities, packet will not parse further')
         return dns
     try:
         additionals = list()
@@ -146,7 +146,7 @@ def parse_dns(buffer):
             additionals.append(additional)
         dns['additionals'] = additionals
     except:
-        print('    Failed to parse additionals')
+        print('    Failed to parse additionals, packet will not parse further')
         return dns
 
     return dns
@@ -183,29 +183,59 @@ def parse_dns_resource_rdata(buffer, offset, rdlength, type):
         cname, offset = parse_dns_label(buffer, offset)
         return cname
     elif type == 'HINFO':
-        pass
+        cpu, offset = parse_char_string(buffer, offset)
+        os, offset = parse_char_string(buffer, offset)
+        return {
+            'cpu': cpu,
+            'os': os
+        }
     elif type == 'MB':
-        pass
+        madname, offset = parse_dns_label(buffer, offset)
+        return madname
     elif type == 'MD':
-        pass
+        madname, offset = parse_dns_label(buffer, offset)
+        return madname
     elif type == 'MF':
-        pass
+        madname, offset = parse_dns_label(buffer, offset)
+        return madname
     elif type == 'MG':
-        pass
+        mgname, offset = parse_dns_label(buffer, offset)
+        return mgname
     elif type == 'MINFO':
-        pass
+        rmailbx, offset = parse_dns_label(buffer, offset)
+        emailbx, offset = parse_dns_label(buffer, offset)
+        return {
+            'rmailbx': rmailbx,
+            'emailbx': emailbx
+        }
     elif type == 'MR':
-        pass
+        mr, offset = parse_dns_label(buffer, offset)
+        return mr
     elif type == 'MX':
-        pass
+        exchange = parse_dns_label(buffer, offset + 2)
+        return {
+            'preference': struct.unpack('>H', bytes(buffer[offset:offset + 2])),
+            'exchange': exchange
+        }
     elif type == 'NULL':
-        pass
+        return 'anything'
     elif type == 'NS':
-        pass
+        ns, offset = parse_dns_label(buffer, offset)
+        return ns
     elif type == 'PTR':
-        pass
+        ptr, offset = parse_dns_label(buffer, offset)
+        return ptr
     elif type == 'SOA':
-        pass
+        mname, offset = parse_dns_label(buffer, offset)
+        rname, offset = parse_dns_label(buffer, offset)
+        return {
+            'mname': mname,
+            'rname': rname,
+            'serial': struct.unpack('>I', bytes(buffer[offset:offset + 4])),
+            'retry': struct.unpack('>I', bytes(buffer[offset + 4:offset + 8])),
+            'expire': struct.unpack('>I', bytes(buffer[offset + 8:offset + 12])),
+            'miniumum': struct.unpack('>I', bytes(buffer[offset + 12:offset + 16]))
+        }
     elif type == 'TXT':
         return binascii.b2a_qp(buffer[offset:offset + rdlength]).decode("utf-8", "strict")
     elif type == 'A':
@@ -260,6 +290,19 @@ def parse_dns_label_recursive(name, offset, buffer, jumps):
             return parse_dns_label_recursive(name, offset + label_length + 1, buffer, jumps)
 
 
+def parse_char_string(buffer, offset):
+    """
+    Parse a character string
+
+    :param buffer:
+    :param offset:
+    :return: - character string
+             - offset after character string
+    """
+    length = struct.unpack('>B', bytes(buffer[offset]))[0]
+    return binascii.b2a_qp(buffer[offset + 1: offset + 1 + length]).decode(), offset + 1 + length
+
+
 def pcap_loop(pcap_file, json_out):
     offset_begin_t = SIZE_HEADER_ETHERNET + SIZE_HEADER_IPV4
 
@@ -284,7 +327,7 @@ def pcap_loop(pcap_file, json_out):
                 pkt_json['ipv4']['dstport'] = udp_header['dstport']
 
                 dns = parse_dns(pkt[offset_begin_t + SIZE_HEADER_UDP:])
-            elif ip_protocol == PROTOCOL_TCP:  # TODO
+            elif ip_protocol == PROTOCOL_TCP:
                 tcp_header, tcp_header_size = parse_tcp(pkt[offset_begin_t:])
                 pkt_json['ipv4']['srcport'] = tcp_header['srcport']
                 pkt_json['ipv4']['dstport'] = tcp_header['dstport']
