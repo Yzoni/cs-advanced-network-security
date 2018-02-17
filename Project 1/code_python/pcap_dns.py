@@ -14,7 +14,7 @@ SIZE_HEADER_UDP = 8
 SIZE_DNS_HEADER = 12
 
 PROTOCOL_UDP = 17
-PROTOCOL_TCP = 0  # TODO
+PROTOCOL_TCP = 6
 
 QCLASS = {
     1: 'IN',
@@ -80,8 +80,14 @@ def parse_udp(buffer):
 
 
 def parse_tcp(buffer):
-    return {}
+    tcp_header = dict()
 
+    tcp_header['srcport'] = struct.unpack('>H', bytes(buffer[:2]))[0]
+    tcp_header['dstport'] = struct.unpack('>H', bytes(buffer[2:4]))[0]
+
+    tcp_header_size = buffer[12] >> 2
+
+    return tcp_header, tcp_header_size
 
 def parse_dns(buffer):
     dns = dict()
@@ -268,26 +274,29 @@ def pcap_loop(pcap_file, json_out):
 
         pkt_json = dict()
 
-        ip_header, ip_protocol = parse_ip(pkt[SIZE_HEADER_ETHERNET:SIZE_HEADER_ETHERNET + SIZE_HEADER_IPV4])
-        pkt_json['ipv4'] = ip_header
+        try:
+            ip_header, ip_protocol = parse_ip(pkt[SIZE_HEADER_ETHERNET:SIZE_HEADER_ETHERNET + SIZE_HEADER_IPV4])
+            pkt_json['ipv4'] = ip_header
 
-        if ip_protocol == PROTOCOL_UDP:
-            udp_header = parse_udp(pkt[offset_begin_t:offset_begin_t + SIZE_HEADER_UDP])
-            pkt_json['ipv4']['srcport'] = udp_header['srcport']
-            pkt_json['ipv4']['dstport'] = udp_header['dstport']
+            if ip_protocol == PROTOCOL_UDP:
+                udp_header = parse_udp(pkt[offset_begin_t:offset_begin_t + SIZE_HEADER_UDP])
+                pkt_json['ipv4']['srcport'] = udp_header['srcport']
+                pkt_json['ipv4']['dstport'] = udp_header['dstport']
 
-            dns = parse_dns(pkt[offset_begin_t + SIZE_HEADER_UDP:])
-        elif ip_protocol == PROTOCOL_TCP:  # TODO
-            tcp_header = parse_tcp(pkt[offset_begin_t:offset_begin_t + SIZE_HEADER_UDP])
-            pkt_json['ipv4']['srcport'] = tcp_header['srcport']
-            pkt_json['ipv4']['dstport'] = tcp_header['dstport']
-            dns = parse_dns(pkt[offset_begin_t + SIZE_HEADER_UDP:])
-        else:
-            dns = dict()
-            print('Irrelevant protocol')
+                dns = parse_dns(pkt[offset_begin_t + SIZE_HEADER_UDP:])
+            elif ip_protocol == PROTOCOL_TCP:  # TODO
+                tcp_header, tcp_header_size = parse_tcp(pkt[offset_begin_t:])
+                pkt_json['ipv4']['srcport'] = tcp_header['srcport']
+                pkt_json['ipv4']['dstport'] = tcp_header['dstport']
+                dns = parse_dns(pkt[offset_begin_t + tcp_header_size:])
+            else:
+                dns = dict()
+                print('Irrelevant protocol')
 
-        pkt_json['header'] = dns
-        pkts_json['packet_{:d}'.format(pkt_counter)] = pkt_json
+            pkt_json['header'] = dns
+            pkts_json['packet_{:d}'.format(pkt_counter)] = pkt_json
+        except:
+            print('    Failed to pare packet {}'.format(pkt_counter))
 
     with open(json_out, 'w') as outfile:
         json.dump(pkts_json, outfile)
