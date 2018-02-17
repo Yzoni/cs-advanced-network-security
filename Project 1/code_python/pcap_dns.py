@@ -111,16 +111,18 @@ def parse_dns(buffer):
             questions.append(question)
         dns['question'] = questions
     except:
+        print('Failed to parse questions')
         return dns
 
-    try:
-        answers = list()
-        for _ in range(dns_header['ancount']):
-            answer, offset = parse_dns_resource(buffer[SIZE_DNS_HEADER:], offset)
-            answers.append(answer)
-        dns['answers'] = answers
-    except:
-        return dns
+    # try:
+    answers = list()
+    for _ in range(dns_header['ancount']):
+        answer, offset = parse_dns_resource(buffer[SIZE_DNS_HEADER:], offset)
+        answers.append(answer)
+    dns['answers'] = answers
+    # except:
+    #     print('Failed to parse answers')
+    #     return dns
 
     try:
         authorities = list()
@@ -129,6 +131,7 @@ def parse_dns(buffer):
             authorities.append(authority)
         dns['authorities'] = authorities
     except:
+        print('Failed to parse authorities')
         return dns
     try:
         additionals = list()
@@ -137,6 +140,7 @@ def parse_dns(buffer):
             additionals.append(additional)
         dns['additionals'] = additionals
     except:
+        print('Failed to parse additionals')
         return dns
 
     return dns
@@ -155,7 +159,6 @@ def parse_dns_question(buffer, offset):
 
 def parse_dns_resource(buffer, offset):
     dns_resource = dict()
-
     rname, offset = parse_dns_label(buffer, offset)
     dns_resource['name'] = binascii.b2a_qp(rname).decode("utf-8", "strict")
     dns_resource['type'] = QTYPES[struct.unpack('>H', bytes(buffer[offset:offset + 2]))[0]]
@@ -163,9 +166,49 @@ def parse_dns_resource(buffer, offset):
     dns_resource['ttl'] = struct.unpack('>I', bytes(buffer[offset + 4:offset + 8]))[0]
 
     rdlength = struct.unpack('>H', bytes(buffer[offset + 8:offset + 10]))[0]
-    dns_resource['rdata'] = bytes(buffer[offset + 10:offset + 10 + rdlength])[0]
+    dns_resource['rdata'] = parse_dns_resource_rdata(buffer,
+                                                     offset + 10,
+                                                     rdlength,
+                                                     dns_resource['type'])
 
-    return dns_resource, offset
+    return dns_resource, offset + 10 + rdlength
+
+
+def parse_dns_resource_rdata(buffer, offset, rdlength, type):
+    if type == 'CNAME':
+        pass
+    elif type == 'HINFO':
+        pass
+    elif type == 'MB':
+        pass
+    elif type == 'MD':
+        pass
+    elif type == 'MF':
+        pass
+    elif type == 'MG':
+        pass
+    elif type == 'MINFO':
+        pass
+    elif type == 'MR':
+        pass
+    elif type == 'MX':
+        pass
+    elif type == 'NULL':
+        pass
+    elif type == 'NS':
+        pass
+    elif type == 'PTR':
+        pass
+    elif type == 'SOA':
+        pass
+    elif type == 'TXT':
+        return binascii.b2a_qp(buffer[offset:offset + rdlength]).decode("utf-8", "strict")
+    elif type == 'A':
+        return parse_ipv4_field(buffer[offset:offset + 4])
+    elif type == 'WKS':
+        pass
+    else:
+        print('Could not parse RDATA, unknown type')
 
 
 def label_is_pointer(octet):
@@ -179,9 +222,12 @@ def label_is_pointer(octet):
 
 def parse_dns_label_text(buffer, offset):
     labels = b''
+    print('parse_dns_label_text')
     while True:
         label_length = buffer[offset] & (1 << 6) - 1  # last 6 bits indicate length of label
         labels += buffer[offset + 1:offset + label_length + 1]
+        print(labels)
+
         offset += label_length + 1
         if buffer[offset] == 0:  # Last label 0 octet
             break
@@ -208,6 +254,9 @@ def pcap_loop(pcap_file, json_out):
     pkt_counter = 0
     for ts, pkt in sniffer:
         pkt_counter += 1
+        # if pkt_counter != 2: continue
+        print('Parsing packet {:d}...'.format(pkt_counter))
+
         pkt_json = dict()
 
         ip_header, ip_protocol = parse_ip(pkt[SIZE_HEADER_ETHERNET:SIZE_HEADER_ETHERNET + SIZE_HEADER_IPV4])
