@@ -1,3 +1,11 @@
+"""
+Yorick de Boer
+
+DNS-RFC1035 parser for both live and pcap files.
+
+BPF filter is not used, because it blocks when attempting to exit trough keyboard interrupt
+"""
+
 import pcap
 import struct
 import binascii
@@ -15,6 +23,8 @@ SIZE_DNS_HEADER = 12
 
 PROTOCOL_UDP = 17
 PROTOCOL_TCP = 6
+
+PROTOCOL_DNS = 53
 
 QCLASS = {
     1: 'IN',
@@ -252,7 +262,7 @@ def label_is_pointer(octet):
     elif (octet >> 6 | 0b00) == 0b00:  # Label
         return False
     else:
-        print('Unknown label type')
+        raise Exception('Not a label: {}'.format(bin(octet)))
 
 
 def parse_dns_label(buffer, offset):
@@ -303,7 +313,7 @@ def parse_char_string(buffer, offset):
     return binascii.b2a_qp(buffer[offset + 1: offset + 1 + length]).decode(), offset + 1 + length
 
 
-def pcap_loop(pcap_file, json_out):
+def pcap_loop(pcap_file, json_out, allow_non_std_port=False):
     offset_begin_t = SIZE_HEADER_ETHERNET + SIZE_HEADER_IPV4
 
     sniffer = pcap.pcap(name=pcap_file, promisc=True, immediate=True, timeout_ms=50)
@@ -312,44 +322,59 @@ def pcap_loop(pcap_file, json_out):
     pkt_counter = 0
     for ts, pkt in sniffer:
         pkt_counter += 1
-        # if pkt_counter != 1: continue
-        print('Parsing packet {:d}...'.format(pkt_counter))
 
+        print('Parsing packet {:d}...'.format(pkt_counter))
         pkt_json = dict()
+        ip_header, ip_protocol = parse_ip(pkt[SIZE_HEADER_ETHERNET:SIZE_HEADER_ETHERNET + SIZE_HEADER_IPV4])
+        pkt_json['ipv4'] = ip_header
+
+        if ip_protocol == PROTOCOL_UDP:
+            udp_header = parse_udp(pkt[offset_begin_t:offset_begin_t + SIZE_HEADER_UDP])
+            pkt_json['ipv4']['srcport'] = udp_header['srcport']
+            pkt_json['ipv4']['dstport'] = udp_header['dstport']
+            dns_offset = offset_begin_t + SIZE_HEADER_UDP
+
+        elif ip_protocol == PROTOCOL_TCP:
+            tcp_header, tcp_header_size = parse_tcp(pkt[offset_begin_t:])
+            pkt_json['ipv4']['srcport'] = tcp_header['srcport']
+            pkt_json['ipv4']['dstport'] = tcp_header['dstport']
+            dns_offset = offset_begin_t + tcp_header_size
+
+        else:
+            print('    Skipping packet: Irrelevant protocol (non tpc/udp)')
+            continue
+
+        if not pkt_json['ipv4']['srcport'] == PROTOCOL_DNS and not pkt_json['ipv4']['dstport'] == PROTOCOL_DNS:
+            if allow_non_std_port:
+                print('    Warning! Probably not a DNS packet, non standard port!')
+            else:
+                print('    Skipping packet: Non standard DNS port')
+                continue
 
         try:
-            ip_header, ip_protocol = parse_ip(pkt[SIZE_HEADER_ETHERNET:SIZE_HEADER_ETHERNET + SIZE_HEADER_IPV4])
-            pkt_json['ipv4'] = ip_header
-
-            if ip_protocol == PROTOCOL_UDP:
-                udp_header = parse_udp(pkt[offset_begin_t:offset_begin_t + SIZE_HEADER_UDP])
-                pkt_json['ipv4']['srcport'] = udp_header['srcport']
-                pkt_json['ipv4']['dstport'] = udp_header['dstport']
-
-                dns = parse_dns(pkt[offset_begin_t + SIZE_HEADER_UDP:])
-            elif ip_protocol == PROTOCOL_TCP:
-                tcp_header, tcp_header_size = parse_tcp(pkt[offset_begin_t:])
-                pkt_json['ipv4']['srcport'] = tcp_header['srcport']
-                pkt_json['ipv4']['dstport'] = tcp_header['dstport']
-                dns = parse_dns(pkt[offset_begin_t + tcp_header_size:])
-            else:
-                dns = dict()
-                print('Irrelevant protocol')
-
+            dns = parse_dns(pkt[dns_offset:])
             pkt_json['header'] = dns
-            pkts_json['packet_{:d}'.format(pkt_counter)] = pkt_json
         except:
-            print('    Failed to pare packet {}'.format(pkt_counter))
+            print('    Failed to parse packet {} as DNS RFC1035'.format(pkt_counter))
+            continue
 
-    with open(json_out, 'w') as outfile:
-        json.dump(pkts_json, outfile)
+        pkts_json['packet_{:d}'.format(pkt_counter)] = pkt_json
+        with open(json_out, 'w') as outfile:
+            json.dump(pkts_json, outfile)
+
+    return pkts_json
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='PCAP DNS PARSING')
-    parser.add_argument('pcap_in', type=str, help='pcap file input')
+    parser = argparse.ArgumentParser(description='PCAP DNS RFC1035 PARSER')
+    parser.add_argument('pcap_in', type=str,
+                        help='pcap file input or name of suitable network device')
     parser.add_argument('json_out', type=str, help='JSON out file')
     args = parser.parse_args()
 
     if args.pcap_in and args.json_out:
-        pcap_loop(args.pcap_in, args.json_out)
+        try:
+            print('Started parsing packets on {}'.format(args.pcap_in))
+            pkts_json = pcap_loop(args.pcap_in, args.json_out)
+        except KeyboardInterrupt:
+            print('Stopping capture...')
