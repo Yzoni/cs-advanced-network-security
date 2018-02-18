@@ -5,7 +5,13 @@
 python3 /path/to/pcap_file.pcap /path/to/json_out.json
 ```
 
-or
+or with a live device
+
+```bash
+sudo python3 eno1 /path/to/json_out.json
+```
+
+or to install dependencies:
 
 ```bash
 run.sh /path/to/pcap_file.pcap /path/to/json_out.json
