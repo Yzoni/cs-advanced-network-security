@@ -222,9 +222,9 @@ def parse_dns_resource_rdata(buffer, offset, rdlength, type):
         mr, offset = parse_dns_label(buffer, offset)
         return mr
     elif type == 'MX':
-        exchange = parse_dns_label(buffer, offset + 2)
+        exchange, offset_x = parse_dns_label(buffer, offset + 2)
         return {
-            'preference': struct.unpack('>H', bytes(buffer[offset:offset + 2])),
+            'preference': struct.unpack('>H', bytes(buffer[offset:offset + 2]))[0],
             'exchange': exchange
         }
     elif type == 'NULL':
