@@ -106,12 +106,12 @@ def parse_dns(buffer):
     dns_header = dict()
     dns_header['id'] = struct.unpack('>H', bytes(buffer[:2]))[0]
     dns_header['qr'] = bit_enabled(buffer[2], 7)
-    dns_header['opcode'] = OPCODES[parse_4_bit_opcode(buffer[3])]
+    dns_header['opcode'] = OPCODES[parse_4_bit_opcode(buffer[2])]
     dns_header['aa'] = bit_enabled(buffer[2], 2)
     dns_header['tc'] = bit_enabled(buffer[2], 1)
     dns_header['rd'] = bit_enabled(buffer[2], 0)
     dns_header['ra'] = bit_enabled(buffer[3], 7)
-    dns_header['rcode'] = RCODES[parse_4_bit_rcode(buffer[4])]
+    dns_header['rcode'] = RCODES[parse_4_bit_rcode(buffer[3])]
     dns_header['qdcount'] = struct.unpack('>H', bytes(buffer[4:6]))[0]
     dns_header['ancount'] = struct.unpack('>H', bytes(buffer[6:8]))[0]
     dns_header['nscount'] = struct.unpack('>H', bytes(buffer[8:10]))[0]
