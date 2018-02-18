@@ -2,13 +2,13 @@
 
 ####Usage:
 ```bash
-python3 /path/to/pcap_file.pcap /path/to/json_out.json
+python3 pcap_dns.py /path/to/pcap_file.pcap /path/to/json_out.json
 ```
 
 or with a live device
 
 ```bash
-sudo python3 eno1 /path/to/json_out.json
+sudo python3 pcap_dns.py eno1 /path/to/json_out.json
 ```
 
 or to install dependencies:
