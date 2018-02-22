@@ -1,28 +1,18 @@
 import logging
-from logging.config import dictConfig
+import json_log_formatter
+import sys
 
-LOGGING = dict(
-    version=1,
-    formatters={
-        'f': {
-            'format': '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
-        }
-    },
-    handlers={
-        'stdout': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'f',
-            'stream': 'ext://sys.stdout'
-        }
-    },
-    loggers={
-        '':
-            {
-                'handlers': ['stdout'],
-                'level': 'DEBUG',
-                'propagate': True
-            }
-    }
-)
-dictConfig(LOGGING)
+formatter = json_log_formatter.JSONFormatter()
+
+json_handler = logging.FileHandler(filename='log.json')
+json_handler.setFormatter(formatter)
+
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+
 log = logging.getLogger('IPS')
+log.addHandler(json_handler)
+log.addHandler(stdout_handler)
+
+log.setLevel(logging.DEBUG)
+
