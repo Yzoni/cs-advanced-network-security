@@ -24,6 +24,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='IPS')
     parser.add_argument('pcap_in', type=str,
                         help='pcap file input or name of suitable network device')
+    parser.add_argument('log_out', type=str,
+                        help='output file for a json log')
+    parser.add_argument('--arp-config', type=str,
+                        help='configuration file with IP to MAC bindings')
     args = parser.parse_args()
 
     if args.pcap_in:
