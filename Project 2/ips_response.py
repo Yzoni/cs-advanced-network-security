@@ -1,4 +1,4 @@
-import logging
+from ips_logger import log
 
 
 class IPSResponse:
@@ -17,14 +17,14 @@ class IPSResponse:
 
 class PermittedResponse(IPSResponse):
     def _save(self):
-        logging.info('PERMITTED Response: {}'.format(self.message))
+        log.info('PERMITTED Response: {}'.format(self.message))
 
 
 class ErrorResponse(IPSResponse):
     def _save(self):
-        logging.info('ERROR Response: {}'.format(self.message))
+        log.info('ERROR Response: {}'.format(self.message))
 
 
 class NoticeRespone(IPSResponse):
     def _save(self):
-        logging.info('NOTICE Response: {}'.format(self.message))
+        log.info('NOTICE Response: {}'.format(self.message))

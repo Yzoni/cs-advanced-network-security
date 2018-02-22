@@ -30,11 +30,19 @@ def test_error_on_improperly_formatted_packet(arp):
     pass
 
 
+def test_error_on_binding_to_broadcast(arp):
+    a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='ff:ff:ff:ff:ff:ff', op='is-at')
+    response = arp.receive_packet(a)
+    assert type(response) is ErrorResponse
+
+
 def test_error_on_invalid_arp_mac_addresses(arp):
+    # Invalid hwsrc
     a = ARP(hwsrc='aa')
     response = arp.receive_packet(a)
     assert type(response) is ErrorResponse
 
+    # Invalid hwdst
     a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:00:00:00')
     response = arp.receive_packet(a)
     assert type(response) is ErrorResponse
@@ -47,11 +55,20 @@ def test_notice_on_request_not_sent_to_broadcast(arp):
 
 
 def test_notice_on_response_not_sent_to_unicast(arp):
-    a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='ff:ff:ff:ff:ff:ff', op='is-at')
+    a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:00:00:00:00:00', op='is-at')
     response = arp.receive_packet(a)
     assert type(response) is NoticeRespone
 
 
-def test_notice_on_inconsistent_linklayer_and_arp(arp):
-    a = ARP(psrc='172.16.20.40')
-    # print(a.summary())
+def test_notice_on_linklayer_address_matches_arp(arp):
+    # Request
+    e = Ether(src='00:11:22:aa:bb:cd')
+    a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:00:00:00:00:00', op='who-has')
+    response = arp.receive_packet(e / a)
+    assert type(response) is NoticeRespone
+
+    # Reply
+    e = Ether(src='00:11:22:aa:bb:cd', dst='00:11:22:aa:bb:cc')
+    a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:11:22:aa:bb:cd', op='is-at')
+    response = arp.receive_packet(e / a)
+    assert type(response) is NoticeRespone
