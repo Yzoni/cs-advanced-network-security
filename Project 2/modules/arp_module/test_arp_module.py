@@ -22,7 +22,7 @@ pdst= 172.16.20.255
 
 @pytest.fixture
 def arp():
-    from arp_module import ARPModule
+    from modules.arp_module.arp_module import ARPModule
     return ARPModule()
 
 
