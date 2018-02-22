@@ -4,7 +4,7 @@ from ips_logger import log
 from scapy.layers.l2 import Ether
 import pcap
 
-from arp_module import ARPModule
+from modules.arp.arp_module import ARPModule
 
 arp_module = ARPModule()
 TYPE_ARP = 2054
