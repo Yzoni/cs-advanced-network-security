@@ -57,7 +57,7 @@ class ARPModule(IPSModule):
         return PermittedResponse('Packet is all good', {'pkt': repr(pkt)})
 
     def request_mac_hwdst_is_not_zero(self, pkt):
-        return pkt[ARP].hwsrc == '00:00:00:00:00:00'
+        return pkt[ARP].hwdst == '00:00:00:00:00:00'
 
     def reply_has_ip_bind_to_mac_broadcast(self, pkt):
         return pkt[ARP].hwsrc == 'ff:ff:ff:ff:ff:ff'

@@ -68,9 +68,11 @@ def test_notice_on_linklayer_address_matches_arp(arp):
 
 def test_notice_when_double_request(arp):
     """
+    RFC826 Deviation.
     Client is not working properly if it does multiple ARP requests for the same IP
     """
-    # '00:11:22:aa:bb:ca' does implicitly a request
+
+    # '10.0.0.2 00:11:22:aa:bb:ca' does implicitly a request for '10.0.0.1'
 
     # Gets a reply back
     e = Ether(src='00:11:22:aa:bb:cd', dst='00:11:22:aa:bb:ca')
@@ -78,8 +80,29 @@ def test_notice_when_double_request(arp):
     response = arp.receive_packet(e / a)
     assert type(response) is PermittedResponse
 
-    # Same client does a request again
+    # '10.0.0.2 00:11:22:aa:bb:ca' does a request again
     e = Ether(src='00:11:22:aa:bb:ca', dst='ff:ff:ff:ff:ff:ff')
+    a = ARP(hwsrc='00:11:22:aa:bb:ca', hwdst='00:00:00:00:00:00', psrc='10.0.0.2', pdst='10.0.0.1', op='who-has')
+    arp.receive_packet(e / a)
+    response = arp.receive_packet(e / a)
+    assert type(response) is NoticeRespone
+
+
+def test_notice_replier_when_request_after_received_request(arp):
+    """
+    RFC826 Deviation.
+    When a client received a request, it should add the ip-mac from this requester, and
+    not do a request for this ip later.
+    """
+
+    # Sender of this reply should have saved the src MAC and src IP of the request
+    e = Ether(src='00:11:22:aa:bb:cd', dst='00:11:22:aa:bb:ca')
+    a = ARP(hwsrc='00:11:22:aa:bb:cd', hwdst='00:11:22:aa:bb:ca', psrc='10.0.0.1', pdst='10.0.0.2', op='is-at')
+    response = arp.receive_packet(e / a)
+    assert type(response) is PermittedResponse
+
+    # Sender of previous reply should not do a new request
+    e = Ether(src='00:11:22:aa:bb:cd', dst='ff:ff:ff:ff:ff:ff')
     a = ARP(hwsrc='00:11:22:aa:bb:cd', hwdst='00:00:00:00:00:00', psrc='10.0.0.2', pdst='10.0.0.1', op='who-has')
     arp.receive_packet(e / a)
     response = arp.receive_packet(e / a)
