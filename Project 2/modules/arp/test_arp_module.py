@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from scapy.layers.l2 import Ether, ARP
+from scapy.all import *
 import pytest
 
 from ips_response import *
@@ -66,7 +66,7 @@ def test_notice_on_response_not_sent_to_unicast(arp):
 
 def test_notice_on_linklayer_address_matches_arp(arp):
     # Request
-    e = Ether(src='00:11:22:aa:bb:cd')
+    e = Ether(src='00:11:22:aa:bb:cd', dst='ff:ff:ff:ff:ff:ff')
     a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:00:00:00:00:00', op='who-has')
     response = arp.receive_packet(e / a)
     assert type(response) is NoticeRespone
