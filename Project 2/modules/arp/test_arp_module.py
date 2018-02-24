@@ -6,22 +6,6 @@ import pytest
 from ips_response import *
 from modules.arp.arp_module import ACL
 
-"""
-dst= ff:ff:ff:ff:ff:ff
-src= 00:11:22:aa:bb:cc
-type= 0x806
-
-hwtype= 0x1
-ptype= 0x800
-hwlen= 6
-plen= 4
-op= who-has
-hwsrc= 00:11:22:aa:bb:cc
-psrc= 172.16.20.40
-hwdst= 00:00:00:00:00:00
-pdst= 172.16.20.255
-"""
-
 
 @pytest.fixture
 def arp():
