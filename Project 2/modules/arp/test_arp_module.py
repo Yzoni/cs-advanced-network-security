@@ -83,26 +83,6 @@ def test_notice_when_double_request(arp):
     assert type(response) is NoticeRespone
 
 
-# def test_notice_when_should_have_had_ip_from_previous_received_broadcast(arp):
-#     e = Ether(src='00:11:22:aa:bb:cd', dst='ff:ff:ff:ff:ff:ff')
-#     a = ARP(hwsrc='00:11:22:aa:bb:cd', hwdst='00:00:00:00:00:00', psrc='10.0.0.2', pdst='10.0.0.1', op='who-has')
-#     response = arp.receive_packet(e / a)
-#     assert type(response) is PermittedResponse
-#
-#     # b with ip 10.0.0.2 received request broadcast and should have saved the mac-ip from it, but still does a request
-#     # for the 10.0.0.2 ip.
-#     e = Ether(src='00:11:22:aa:bb:ca', dst='ff:ff:ff:ff:ff:ff')
-#     a = ARP(hwsrc='00:11:22:aa:bb:ca', hwdst='00:00:00:00:00:00', psrc='10.0.0.1', pdst='10.0.0.2', op='who-has')
-#     response = arp.receive_packet(e / a)
-#     assert type(response) is NoticeRespone
-#
-#     # c with ip 10.0.0.3 received request broadcast and should have saved the mac-ip from it, but still does a request
-#     # for the 10.0.0.2 ip.
-#     e = Ether(src='00:11:22:aa:bb:ca', dst='ff:ff:ff:ff:ff:ff')
-#     a = ARP(hwsrc='00:11:22:aa:bb:ca', hwdst='00:00:00:00:00:00', psrc='10.0.0.1', pdst='10.0.0.2', op='who-has')
-#     response = arp.receive_packet(e / a)
-#     assert type(response) is NoticeRespone
-
 def test_error_when_ip_not_in_acl():
     from modules.arp.arp_module import ARPModule
     arp = ARPModule(ACL({

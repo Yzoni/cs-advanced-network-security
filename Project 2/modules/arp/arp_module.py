@@ -43,10 +43,6 @@ class ARPModule(IPSModule):
             if not self.request_linklayer_address_matches_arp(pkt):
                 return NoticeRespone('Link layer MAC does not match ARP request MAC', {'pkt': repr(pkt)})
 
-            # All receivers of the broadcast should now know the ip-mac from requester
-            # To be able to do this, the ips needs to know the current MAC addresses in the network
-            # self.db.store_sender_of_request(pkt[ARP].hwdst, pkt[ARP].psrc)
-
         else:  # Reply
             if self.reply_has_ip_bind_to_mac_broadcast(pkt):
                 return ErrorResponse('ARP reply tries to bind IP to MAC broadcast', {'pkt': repr(pkt)})
