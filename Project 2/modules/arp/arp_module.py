@@ -7,6 +7,7 @@ from ips_module import IPSModule
 from ips_response import *
 from util import is_valid_mac_address
 from ips_logger import log
+from modules.arp.arp_database import ARPDatabase
 
 
 class ARPModule(IPSModule):
@@ -15,8 +16,10 @@ class ARPModule(IPSModule):
         if acl_conf:
             self.acl = ACL.from_file(acl_conf)
         else:
-            log.info('ALC not loaded')
+            log.info('ACL not loaded')
             self.acl = None
+
+        self.db = ARPDatabase()
 
         super().__init__()
 
@@ -31,10 +34,17 @@ class ARPModule(IPSModule):
             return ErrorResponse('MAC-IP binding sender is not in ACL', {})
 
         if pkt[ARP].op == ARP.who_has:  # Request
+            if self.db.request_sender_should_have_ip(pkt[ARP].hwsrc, pkt[ARP].pdst):
+                return NoticeRespone('Requester should have known IP already', {})
             if not self.request_is_send_to_broadcast(pkt):
                 return NoticeRespone('ARP Request is not to broadcast', {})
             if not self.request_linklayer_address_matches_arp(pkt):
                 return NoticeRespone('Link layer MAC does not match ARP response MAC', {})
+
+            # All receivers of the broadcast should now know the ip-mac from requester
+            # To be able to do this, the ips needs to know the current MAC addresses in the network
+            # self.db.store_sender_of_request(pkt[ARP].hwdst, pkt[ARP].psrc)
+
         else:  # Response
             if self.response_has_ip_bind_to_mac_broadcast(pkt):
                 return ErrorResponse('ARP response tries to bind IP to MAC broadcast', {})
@@ -42,6 +52,9 @@ class ARPModule(IPSModule):
                 return NoticeRespone('ARP Response is not to unicast', {})
             if not self.response_linklayer_address_matches_arp(pkt):
                 return NoticeRespone('Link layer MAC does not match ARP response MAC', {})
+
+            # The requester should now know the requested ip-mac
+            self.db.store_sender_of_request(pkt[ARP].hwdst, pkt[ARP].psrc)
 
         return PermittedResponse('Packet is all good', {})
 
@@ -68,9 +81,6 @@ class ARPModule(IPSModule):
     def has_valid_arp_dst_mac_address(self, pkt) -> bool:
         return is_valid_mac_address(pkt[ARP].hwdst)
 
-    def load_ip_to_mac_mappings(self):
-        pass
-
 
 class ACL:
     """
@@ -81,6 +91,7 @@ class ACL:
      - An IP can have multiple possible MACs
      - A MAC can have multiple possible IPs
     """
+
     def __init__(self, acl: dict) -> None:
         self.acl = acl
         super().__init__()
@@ -104,5 +115,3 @@ class ACL:
             return True
         else:
             return False
-
-
