@@ -5,11 +5,11 @@ class ARPDatabase:
 
     def __init__(self) -> None:
 
-        self.request_srcs = defaultdict(list)
+        self.mac_stored_ips = defaultdict(list)
 
         super().__init__()
 
-    def store_sender_of_request(self, mac_client, ip_asked_for):
+    def store_mac_should_know(self, mac_client, ip_asked_for):
         """
 
         Store all ip addresses a clients should know
@@ -18,7 +18,7 @@ class ARPDatabase:
         :param ip_asked_for: the target ip address
         """
 
-        self.request_srcs[mac_client].append(ip_asked_for)
+        self.mac_stored_ips[mac_client].append(ip_asked_for)
 
     def request_sender_should_have_ip(self, src, ip_asked_for) -> bool:
         """
@@ -33,7 +33,7 @@ class ARPDatabase:
         :return: whether the sender should have already had the ip-mac binding
         """
 
-        if ip_asked_for in self.request_srcs[src]:
+        if ip_asked_for in self.mac_stored_ips[src]:
             return True
         else:
             return False

@@ -51,8 +51,11 @@ class ARPModule(IPSModule):
             if not self.reply_linklayer_address_matches_arp(pkt):
                 return NoticeRespone('Link layer MAC does not match ARP reply MAC', {'pkt': repr(pkt)})
 
-            # The requester should now know the requested ip-mac
-            self.db.store_sender_of_request(pkt[ARP].hwdst, pkt[ARP].psrc)
+        # The replier should now know the requested ip-mac
+        # OR
+        # The requester should now know the requested ip-mac
+
+        self.db.store_mac_should_know(pkt[ARP].hwsrc, pkt[ARP].pdst)
 
         return PermittedResponse('Packet is all good', {'pkt': repr(pkt)})
 
