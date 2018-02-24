@@ -19,14 +19,14 @@ class IPSResponse:
 
 class PermittedResponse(IPSResponse):
     def _save(self):
-        log.info('PERMITTED Response: {}'.format(self.message), extra=self.pkt_summary)
+        log.info('PERMITTED Response: {} -> {}'.format(self.message, self.pkt_summary['pkt']), extra=self.pkt_summary)
 
 
 class ErrorResponse(IPSResponse):
     def _save(self):
-        log.info('ERROR Response: {}'.format(self.message), extra=self.pkt_summary)
+        log.info('ERROR Response: {} -> {}'.format(self.message, self.pkt_summary['pkt']), extra=self.pkt_summary)
 
 
 class NoticeRespone(IPSResponse):
     def _save(self):
-        log.info('NOTICE Response: {}'.format(self.message), extra=self.pkt_summary)
+        log.info('NOTICE Response: {} -> {}'.format(self.message, self.pkt_summary['pkt']), extra=self.pkt_summary)

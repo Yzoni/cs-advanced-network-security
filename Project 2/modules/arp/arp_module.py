@@ -34,46 +34,48 @@ class ARPModule(IPSModule):
             return ErrorResponse('MAC-IP binding sender is not in ACL', {'pkt': repr(pkt)})
 
         if pkt[ARP].op == ARP.who_has:  # Request
+            if not self.request_mac_hwdst_is_not_zero(pkt):
+                return NoticeRespone('Request ARP MAC address is not 00:00...', {'pkt': repr(pkt)})
             if self.db.request_sender_should_have_ip(pkt[ARP].hwsrc, pkt[ARP].pdst):
-                return NoticeRespone('Requester should have known IP already', {'pkt': repr(pkt)})
-            if not self.request_is_send_to_broadcast(pkt):
+                return NoticeRespone('Requester should have known the IP already', {'pkt': repr(pkt)})
+            if not self.is_send_to_broadcast(pkt):
                 return NoticeRespone('ARP Request is not to broadcast', {'pkt': repr(pkt)})
             if not self.request_linklayer_address_matches_arp(pkt):
-                return NoticeRespone('Link layer MAC does not match ARP response MAC', {'pkt': repr(pkt)})
+                return NoticeRespone('Link layer MAC does not match ARP request MAC', {'pkt': repr(pkt)})
 
             # All receivers of the broadcast should now know the ip-mac from requester
             # To be able to do this, the ips needs to know the current MAC addresses in the network
             # self.db.store_sender_of_request(pkt[ARP].hwdst, pkt[ARP].psrc)
 
-        else:  # Response
-            if self.response_has_ip_bind_to_mac_broadcast(pkt):
-                return ErrorResponse('ARP response tries to bind IP to MAC broadcast', {'pkt': repr(pkt)})
-            if not self.response_is_send_to_unicast(pkt):
-                return NoticeRespone('ARP Response is not to unicast', {'pkt': repr(pkt)})
-            if not self.response_linklayer_address_matches_arp(pkt):
-                return NoticeRespone('Link layer MAC does not match ARP response MAC', {'pkt': repr(pkt)})
+        else:  # Reply
+            if self.reply_has_ip_bind_to_mac_broadcast(pkt):
+                return ErrorResponse('ARP reply tries to bind IP to MAC broadcast', {'pkt': repr(pkt)})
+            if self.is_send_to_broadcast(pkt):
+                return NoticeRespone('ARP reply is not to unicast', {'pkt': repr(pkt)})
+            if not self.reply_linklayer_address_matches_arp(pkt):
+                return NoticeRespone('Link layer MAC does not match ARP reply MAC', {'pkt': repr(pkt)})
 
             # The requester should now know the requested ip-mac
             self.db.store_sender_of_request(pkt[ARP].hwdst, pkt[ARP].psrc)
 
         return PermittedResponse('Packet is all good', {'pkt': repr(pkt)})
 
-    def response_has_ip_bind_to_mac_broadcast(self, pkt):
+    def request_mac_hwdst_is_not_zero(self, pkt):
+        return pkt[ARP].hwsrc == '00:00:00:00:00:00'
+
+    def reply_has_ip_bind_to_mac_broadcast(self, pkt):
         return pkt[ARP].hwsrc == 'ff:ff:ff:ff:ff:ff'
 
-    def response_linklayer_address_matches_arp(self, pkt):
-        if pkt[ARP].hwsrc == pkt[Ether].src:
-            return True
-
-    def request_linklayer_address_matches_arp(self, pkt):
+    def reply_linklayer_address_matches_arp(self, pkt):
         if pkt[ARP].hwsrc == pkt[Ether].src and pkt[ARP].hwdst == pkt[Ether].dst:
             return True
 
-    def response_is_send_to_unicast(self, pkt) -> bool:
-        return pkt[Ether].hwdst != 'ff:ff:ff:ff:ff:ff'
+    def request_linklayer_address_matches_arp(self, pkt):
+        if pkt[ARP].hwsrc == pkt[Ether].src:
+            return True
 
-    def request_is_send_to_broadcast(self, pkt) -> bool:
-        return pkt[Ether].hwdst == 'ff:ff:ff:ff:ff:ff'
+    def is_send_to_broadcast(self, pkt) -> bool:
+        return pkt.dst == 'ff:ff:ff:ff:ff:ff'
 
     def has_valid_arp_src_mac_address(self, pkt) -> bool:
         return is_valid_mac_address(pkt[ARP].hwsrc)
