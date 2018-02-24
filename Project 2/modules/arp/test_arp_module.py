@@ -82,3 +82,36 @@ def test_notice_on_linklayer_address_matches_arp(arp):
     a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:11:22:aa:bb:cd', op='is-at')
     response = arp.receive_packet(e / a)
     assert type(response) is NoticeRespone
+
+
+def test_acl():
+    from modules.arp.arp_module import ACL
+    acl_dict = {
+        '00:11:22:aa:bb:cd': '10.10.10.2'
+    }
+    acl = ACL(acl_dict)
+    assert acl.mac_ip_is_in_acl('00:11:22:aa:bb:cd', '10.10.10.2')
+    assert not acl.mac_ip_is_in_acl('00:11:22:aa:bb:cd', '10.10.10.3')
+    assert not acl.mac_ip_is_in_acl('00:11:22:aa:bb:ca', '10.10.10.2')
+
+
+def test_acl_from_file():
+    from modules.arp.arp_module import ACL
+
+    p = Path('temp_test_acl_from_file.txt')
+    with p.open(mode='w') as f:
+        f.writelines(['10.0.0.1 11:ba:da:a5:55:11\n',
+                      '10.0.0.2 11:ba:da:a5:55:11\n',
+                      '192.168.178.5 11:8b:ad:f0:0d:11\n',
+                      '12.12.12.12 11:de:fa:ce:d0:11\n'])
+
+    acl = ACL.from_file(p)
+
+    assert dict(acl.acl) == {
+        '10.0.0.1': ['11:ba:da:a5:55:11'],
+        '10.0.0.2': ['11:ba:da:a5:55:11'],
+        '192.168.178.5': ['11:8b:ad:f0:0d:11'],
+        '12.12.12.12': ['11:de:fa:ce:d0:11']
+    }
+
+    p.unlink()
