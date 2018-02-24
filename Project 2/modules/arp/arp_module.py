@@ -1,7 +1,6 @@
 from pathlib import Path
-from collections import defaultdict
 
-from scapy.layers.l2 import ARP, Ether
+from scapy.all import *
 
 from ips_module import IPSModule
 from ips_response import *
@@ -25,21 +24,21 @@ class ARPModule(IPSModule):
 
     def receive_packet(self, pkt) -> IPSResponse:
         if not self.has_valid_arp_src_mac_address(pkt):
-            return ErrorResponse('Packet has invalid ARP source MAC address', {})
+            return ErrorResponse('Packet has invalid ARP source MAC address', {'pkt': repr(pkt)})
 
         if not self.has_valid_arp_dst_mac_address(pkt):
-            return ErrorResponse('Packet has invalid ARP destination MAC address', {})
+            return ErrorResponse('Packet has invalid ARP destination MAC address', {'pkt': repr(pkt)})
 
         if self.acl and not self.acl.mac_ip_is_in_acl(pkt[ARP].hwsrc, pkt[ARP].psrc):
-            return ErrorResponse('MAC-IP binding sender is not in ACL', {})
+            return ErrorResponse('MAC-IP binding sender is not in ACL', {'pkt': repr(pkt)})
 
         if pkt[ARP].op == ARP.who_has:  # Request
             if self.db.request_sender_should_have_ip(pkt[ARP].hwsrc, pkt[ARP].pdst):
-                return NoticeRespone('Requester should have known IP already', {})
+                return NoticeRespone('Requester should have known IP already', {'pkt': repr(pkt)})
             if not self.request_is_send_to_broadcast(pkt):
-                return NoticeRespone('ARP Request is not to broadcast', {})
+                return NoticeRespone('ARP Request is not to broadcast', {'pkt': repr(pkt)})
             if not self.request_linklayer_address_matches_arp(pkt):
-                return NoticeRespone('Link layer MAC does not match ARP response MAC', {})
+                return NoticeRespone('Link layer MAC does not match ARP response MAC', {'pkt': repr(pkt)})
 
             # All receivers of the broadcast should now know the ip-mac from requester
             # To be able to do this, the ips needs to know the current MAC addresses in the network
@@ -47,16 +46,16 @@ class ARPModule(IPSModule):
 
         else:  # Response
             if self.response_has_ip_bind_to_mac_broadcast(pkt):
-                return ErrorResponse('ARP response tries to bind IP to MAC broadcast', {})
+                return ErrorResponse('ARP response tries to bind IP to MAC broadcast', {'pkt': repr(pkt)})
             if not self.response_is_send_to_unicast(pkt):
-                return NoticeRespone('ARP Response is not to unicast', {})
+                return NoticeRespone('ARP Response is not to unicast', {'pkt': repr(pkt)})
             if not self.response_linklayer_address_matches_arp(pkt):
-                return NoticeRespone('Link layer MAC does not match ARP response MAC', {})
+                return NoticeRespone('Link layer MAC does not match ARP response MAC', {'pkt': repr(pkt)})
 
             # The requester should now know the requested ip-mac
             self.db.store_sender_of_request(pkt[ARP].hwdst, pkt[ARP].psrc)
 
-        return PermittedResponse('Packet is all good', {})
+        return PermittedResponse('Packet is all good', {'pkt': repr(pkt)})
 
     def response_has_ip_bind_to_mac_broadcast(self, pkt):
         return pkt[ARP].hwsrc == 'ff:ff:ff:ff:ff:ff'
