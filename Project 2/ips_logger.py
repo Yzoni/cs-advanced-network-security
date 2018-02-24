@@ -8,7 +8,7 @@ json_handler = logging.FileHandler(filename='log.json')
 json_handler.setFormatter(formatter)
 
 stdout_handler = logging.StreamHandler(sys.stdout)
-stdout_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(message)s'))
 
 log = logging.getLogger('IPS')
 log.addHandler(json_handler)

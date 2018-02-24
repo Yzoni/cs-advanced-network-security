@@ -17,7 +17,7 @@ class ARPModule(IPSModule):
             self.acl = acl
         else:
             self.acl = None
-            log.info('ACL not loaded')
+            log.info('ARP ACL not loaded')
 
         self.db = ARPDatabase()
 

@@ -10,7 +10,6 @@ from modules.arp.arp_module import ARPModule, ACL
 TYPE_ARP = 2054
 
 if __name__ == '__main__':
-    log.info('IPS started')
 
     parser = argparse.ArgumentParser(description='IPS')
     parser.add_argument('pcap_in', type=str,
@@ -22,6 +21,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.pcap_in and args.log_out:
+        log.info('IPS started')
 
         if args.arp_config:
             arp_module = ARPModule(ACL.from_file(Path('example_acl_config.txt')))
@@ -33,3 +33,5 @@ if __name__ == '__main__':
             e = Ether(pkt)
             if e.type == TYPE_ARP:
                 arp_module.receive_packet(Ether(pkt))
+
+        log.info('IPS stopped')
