@@ -4,6 +4,7 @@ from scapy.all import *
 import pytest
 
 from ips_response import *
+from modules.arp.arp_module import ACL
 
 """
 dst= ff:ff:ff:ff:ff:ff
@@ -25,7 +26,7 @@ pdst= 172.16.20.255
 @pytest.fixture
 def arp():
     from modules.arp.arp_module import ARPModule
-    return ARPModule(acl_conf=None)
+    return ARPModule()
 
 
 def test_error_on_improperly_formatted_packet(arp):
@@ -115,13 +116,38 @@ def test_notice_when_double_request(arp):
 #     response = arp.receive_packet(e / a)
 #     assert type(response) is NoticeRespone
 
+def test_error_when_ip_not_in_acl():
+    from modules.arp.arp_module import ARPModule
+    arp = ARPModule(ACL({
+        '00:11:22:aa:bb:cc': '10.10.10.2'
+    }))
+
+    e = Ether(src='00:11:22:aa:bb:cc', dst='00:11:22:aa:bb:cd')
+    a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:11:22:aa:bb:cd', psrc='10.10.10.1', op='is-at')
+
+    response = arp.receive_packet(e / a)
+    assert type(response) == ErrorResponse
+
+
+def test_permitted_when_ip_in_acl():
+    from modules.arp.arp_module import ARPModule
+    arp = ARPModule(ACL({
+        '00:11:22:aa:bb:cc': '10.10.10.2'
+    }))
+
+    e = Ether(src='00:11:22:aa:bb:cc', dst='00:11:22:aa:bb:cd')
+    a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:11:22:aa:bb:cd', psrc='10.10.10.2', op='is-at')
+
+    response = arp.receive_packet(e / a)
+    assert type(response) == PermittedResponse
+
+
 def test_acl():
     from modules.arp.arp_module import ACL
 
-    acl_dict = {
+    acl = ACL({
         '00:11:22:aa:bb:cd': '10.10.10.2'
-    }
-    acl = ACL(acl_dict)
+    })
     assert acl.mac_ip_is_in_acl('00:11:22:aa:bb:cd', '10.10.10.2')
     assert not acl.mac_ip_is_in_acl('00:11:22:aa:bb:cd', '10.10.10.3')
     assert not acl.mac_ip_is_in_acl('00:11:22:aa:bb:ca', '10.10.10.2')

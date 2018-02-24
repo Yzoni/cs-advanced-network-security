@@ -11,12 +11,13 @@ from modules.arp.arp_database import ARPDatabase
 
 class ARPModule(IPSModule):
 
-    def __init__(self, acl_conf: (Path, None)) -> None:
-        if acl_conf:
-            self.acl = ACL.from_file(acl_conf)
+    def __init__(self, acl=None) -> None:
+        if acl:
+            assert isinstance(acl, ACL)
+            self.acl = acl
         else:
-            log.info('ACL not loaded')
             self.acl = None
+            log.info('ACL not loaded')
 
         self.db = ARPDatabase()
 

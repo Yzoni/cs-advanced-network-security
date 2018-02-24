@@ -5,7 +5,7 @@ from pathlib import Path
 from scapy.layers.l2 import Ether
 import pcap
 
-from modules.arp.arp_module import ARPModule
+from modules.arp.arp_module import ARPModule, ACL
 
 TYPE_ARP = 2054
 
@@ -24,9 +24,9 @@ if __name__ == '__main__':
     if args.pcap_in and args.log_out:
 
         if args.arp_config:
-            arp_module = ARPModule(acl_conf=Path(args.arp_config))
+            arp_module = ARPModule(ACL.from_file(Path('example_acl_config.txt')))
         else:
-            arp_module = ARPModule(acl_conf=None)
+            arp_module = ARPModule()
 
         sniffer = pcap.pcap(name=args.pcap_in, promisc=True, immediate=True, timeout_ms=50)
         for ts, pkt in sniffer:
