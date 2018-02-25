@@ -36,7 +36,7 @@ if __name__ == '__main__':
         log().info('IPS STARTED')
 
         if args.arp_config:
-            arp_module = ARPModule(ACL.from_file(Path('example_acl_config.txt')))
+            arp_module = ARPModule(ACL.from_file(Path(args.arp_config)))
         else:
             arp_module = ARPModule()
 
