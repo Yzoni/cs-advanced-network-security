@@ -10,7 +10,7 @@ The `pcap_in` argument can be a saved PCAP file or a live device.
 
 or to install dependencies before running:
 ```bash
-run.sh pcap_in, log_out path_to_acl_config
+run.sh in_acl_config in_pcap out_log
 ```
 
 The log is saved in JSON format
