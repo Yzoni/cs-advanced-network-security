@@ -52,7 +52,7 @@ def test_notice_on_response_not_sent_to_unicast(arp):
     assert type(response) is NoticeRespone
 
 
-def test_notice_on_linklayer_address_matches_arp(arp):
+def test_notice_on_linklayer_address_does_not_match_arps(arp):
     # Request
     e = Ether(src='00:11:22:aa:bb:cd', dst='ff:ff:ff:ff:ff:ff')
     a = ARP(hwsrc='00:11:22:aa:bb:cc', hwdst='00:00:00:00:00:00', op='who-has')
@@ -66,16 +66,17 @@ def test_notice_on_linklayer_address_matches_arp(arp):
     assert type(response) is NoticeRespone
 
 
-def test_notice_when_double_request(arp):
+def test_notice_on_double_request(arp):
     """
-    RFC826 Deviation.
+    RFC826 Deviation. (Not really a deviation, but something might be wrong here)
     Client is not working properly if it does multiple ARP requests for the same IP
     """
 
     e = Ether(src='00:11:22:aa:bb:ca', dst='ff:ff:ff:ff:ff:ff')
     a = ARP(hwsrc='00:11:22:aa:bb:ca', hwdst='00:00:00:00:00:00', psrc='10.0.0.2', pdst='10.0.0.1', op='who-has')
 
-    arp.receive_packet(e / a)
+    response = arp.receive_packet(e / a)
+    assert type(response) is PermittedResponse
 
     response = arp.receive_packet(e / a)
     assert type(response) is NoticeRespone

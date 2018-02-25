@@ -17,7 +17,7 @@ class ARPModule(IPSModule):
             self.acl = acl
         else:
             self.acl = None
-            log.info('ARP ACL not loaded')
+            log().info('ARP ACL not loaded')
 
         self.db = ARPDatabase()
 
@@ -105,7 +105,7 @@ class ACL:
                     mac = l.split(' ')[1]
                     acl[ip].append(mac)
                 except KeyError:
-                    log.error('ARP config failed to parse line {:d}'.format(idx))
+                    log().error('ARP config failed to parse line {:d}'.format(idx))
         return cls(acl)
 
     def mac_ip_is_in_acl(self, mac, ip):

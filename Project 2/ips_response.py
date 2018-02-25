@@ -1,3 +1,7 @@
+"""
+Standard IPS responses
+"""
+
 from ips_logger import log
 import inspect
 
@@ -23,14 +27,14 @@ class IPSResponse:
 
 class PermittedResponse(IPSResponse):
     def _save(self):
-        log.info('{} | PERMITTED Response: {} -> {}'.format(self.module, self.message, self.pkt_summary['pkt']))
+        log().info('{} | PERMITTED | Response: {} | [{}]'.format(self.module, self.message, self.pkt_summary['pkt']))
 
 
 class ErrorResponse(IPSResponse):
     def _save(self):
-        log.info('ERROR Response: {} -> {}'.format(self.module, self.message, self.pkt_summary['pkt']))
+        log().info('{} | ERROR | Response: {} | [{}]'.format(self.module, self.message, self.pkt_summary['pkt']))
 
 
 class NoticeRespone(IPSResponse):
     def _save(self):
-        log.info('NOTICE Response: {} -> {}'.format(self.module, self.message, self.pkt_summary['pkt']))
+        log().info('{} | NOTICE | Response: {} | [{}]'.format(self.module, self.message, self.pkt_summary['pkt']))
