@@ -2,14 +2,14 @@ import pytest
 
 from ips_response import ErrorResponse
 from modules.ieee80211.ieee80211_packet import IEEE80211FrameControl, RadioTapHeader, IEEE80211DataFrameType, \
-    IEEE80211ManagementFrameType, IEEE80211DataFrame, IEEE80211ManagementFrameDisAuth
+    IEEE80211ManagementFrameType, IEEE80211DataFrame, IEEE80211ManagementFrameDisAuth, DSBits
 from modules.ieee80211.ieee80211_module import IEEE80211Module
 
 
 @pytest.fixture
 def wep_arp_broadcast():
     return b'\x08\x41\x00\x00\x00\x25\x9c\xd5\x69\xe1\x00\x00\x00\xb5\x39\x7b' \
-           b'\xff\xff\xff\xff\xff\xff\x80\x39\xda\x86\xf0\x00'
+           b'\xff\xff\xff\xff\xff\xff\x10\x05\xda\x86\xf0\x00'
 
 
 @pytest.fixture
@@ -25,9 +25,9 @@ def disass_ieee80211():
 
 
 @pytest.fixture
-def flags_ieee80211():
-    return b'\x08\x4b\x3a\x01\x50\x0f\x80\xfd\x84\x40\x00\x25\x9c\xd5\x69\xe1' \
-           b'\xff\xff\xff\xff\xff\xff\x50\xb7\xc0\xbd\xd1\xf1\x17\x90'
+def data_wep_wds_ieee80211():
+    return b'\x08\x43\x3a\x01\x50\x0f\x80\xfd\x85\x00\x00\x25\x9c\xd5\x69\xe1' \
+           b'\xff\xff\xff\xff\xff\xff\xc0\x2d\x00\x25\x9c\xd5\x69\xdf\xb0\x86\xf0\x00'
 
 
 def test_parse_radiotap_header():
@@ -37,22 +37,29 @@ def test_parse_radiotap_header():
     assert header.length == 8
 
 
-def test_parse_ieee80211_frame_control_flags(flags_ieee80211):
-    header = IEEE80211FrameControl.from_pkt(flags_ieee80211)
+def test_parse_ieee80211_frame_control_flags(data_wep_wds_ieee80211):
+    header = IEEE80211FrameControl.from_pkt(data_wep_wds_ieee80211)
     assert header.order_flag == False
     assert header.protected_flag == True
     assert header.more_data_flag == False
     assert header.pwr_flag == False
-    assert header.retry_flag == True
+    assert header.retry_flag == False
     assert header.more_fragments_flag == False
-    assert header.ds_flag == 3
+    assert header.ds_flag == DSBits.WDS
 
 
-def test_parse_ieee80211_data_frame_data(wep_arp_broadcast):
-    framecontrol = IEEE80211FrameControl.from_pkt(wep_arp_broadcast)
-    dataframe = IEEE80211DataFrame.from_pkt(wep_arp_broadcast, framecontrol)
-    assert type(framecontrol.subtype) == IEEE80211DataFrameType
-    assert dataframe.wep_iv == 0x00da86f0
+def test_parse_ieee80211_data_frame_data_wds(data_wep_wds_ieee80211):
+    frame_control = IEEE80211FrameControl.from_pkt(data_wep_wds_ieee80211)
+    data_frame = IEEE80211DataFrame.from_pkt(data_wep_wds_ieee80211, frame_control)
+    assert type(frame_control.subtype) == IEEE80211DataFrameType
+    assert frame_control.subtype == IEEE80211DataFrameType.DATA
+
+    assert data_frame.address1 == '50:0f:80:fd:85:00'
+    assert data_frame.address2 == '00:25:9c:d5:69:e1'
+    assert data_frame.address3 == 'ff:ff:ff:ff:ff:ff'
+    assert data_frame.seqnr == 732
+    assert data_frame.address4 == '00:25:9c:d5:69:df'
+    assert data_frame.wep_iv == '0xb086f0'
 
 
 def test_parse_ieee80211_management_frame_deauth(deauth_ieee80211):
@@ -60,7 +67,7 @@ def test_parse_ieee80211_management_frame_deauth(deauth_ieee80211):
     management_frame = IEEE80211ManagementFrameDisAuth.from_pkt(deauth_ieee80211, frame_control)
 
     assert type(frame_control.subtype) == IEEE80211ManagementFrameType
-    assert frame_control.subtype.value == 12
+    assert frame_control.subtype == IEEE80211ManagementFrameType.DEAUTHENTICATION
 
     assert management_frame.da == 'c0:bd:d1:f1:17:90'
     assert management_frame.sa == '00:25:9c:d5:69:e1'
@@ -69,11 +76,11 @@ def test_parse_ieee80211_management_frame_deauth(deauth_ieee80211):
 
 
 def test_parse_ieee80211_management_frame_disass(disass_ieee80211):
-    frame_control = IEEE80211FrameControl.from_pkt(deauth_ieee80211)
-    management_frame = IEEE80211ManagementFrameDisAuth.from_pkt(deauth_ieee80211, frame_control)
+    frame_control = IEEE80211FrameControl.from_pkt(disass_ieee80211)
+    management_frame = IEEE80211ManagementFrameDisAuth.from_pkt(disass_ieee80211, frame_control)
 
     assert type(frame_control.subtype) == IEEE80211ManagementFrameType
-    assert frame_control.subtype.value == 12
+    assert frame_control.subtype == IEEE80211ManagementFrameType.DISASSOCIATION
 
     assert management_frame.da == 'c0:bd:d1:f1:17:90'
     assert management_frame.sa == '00:25:9c:d5:69:e1'

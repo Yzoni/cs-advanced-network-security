@@ -17,3 +17,6 @@ class IEEE80211Database:
         most_common = Counter(self.src_iv[src]).most_common(5)
         if most_common[0][1] >= self.iv_threshold:
             return True
+
+    def clear_source_iv(self, src):
+        self.src_iv.pop(src)

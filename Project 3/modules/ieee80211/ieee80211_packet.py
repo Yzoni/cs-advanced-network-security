@@ -22,9 +22,6 @@ class RadioTapHeader:
         length = struct.unpack('<H', bytes(buffer[2:4]))[0]
         return cls(revision=revision, pad=pad, length=length)
 
-    def to_json(self):
-        return self.__dict__
-
 
 class IEEE80211FrameControl:
     fields = ['version', 'm_type', 'subtype', 'duration', 'order_flag', 'protected_flag', 'more_data_flag', 'pwr_flag',
@@ -72,7 +69,7 @@ class IEEE80211FrameControl:
             pwr_flag = bit_enabled(sub_buffer, 4)
             retry_flag = bit_enabled(sub_buffer, 3)
             more_fragments_flag = bit_enabled(sub_buffer, 2)
-            ds_flag = 3
+            ds_flag = DSBits(int('{:0>8b}'.format(sub_buffer)[6:8], 2))
 
             return order_flag, protected_flag, more_data_flag, pwr_flag, retry_flag, more_fragments_flag, ds_flag
 
@@ -87,11 +84,8 @@ class IEEE80211FrameControl:
 
         return pkt
 
-    def to_json(self):
-        return self.__dict__
 
-
-class IEEE80211ManagementFrameDisAuth: # TODO REASON
+class IEEE80211ManagementFrameDisAuth:  # TODO REASON
     fields = ['da', 'sa', 'bssid', 'seqctl', 'reason']
 
     def __init__(self, **kwargs):
@@ -116,7 +110,12 @@ class IEEE80211ManagementFrameDisAuth: # TODO REASON
 
 
 class IEEE80211DataFrame:
-    fields = ['address1', 'address2', 'address3', 'address4', 'seqctl', 'body']
+    fields = ['address1', 'address2', 'address3', 'address4', 'seqnr', 'wep_iv']
+
+    def __init__(self, **kwargs):
+        for key in self.fields:
+            if key in kwargs:
+                setattr(self, key, kwargs[key])
 
     @classmethod
     def from_pkt(cls, buffer, frame_control: IEEE80211FrameControl):
@@ -129,19 +128,28 @@ class IEEE80211DataFrame:
         address2 = parse_mac_field(buffer[10:16])
         address3 = parse_mac_field(buffer[16:22])
 
-        pkt = cls()
+        fragment_nr, seqnr = _parse_seq_nr(struct.unpack('<H', bytes(buffer[22:24]))[0])
 
-        if not isinstance(frame_control.subtype, IEEE80211ControlFrameType):
-            pkt.fragment_nr, pkt.seqnr = _parse_seq_nr(struct.unpack('<H', bytes(buffer[22:24]))[0])
+        if frame_control.ds_flag == DSBits.WDS:
+            address4 = parse_mac_field(buffer[24:30])
+            wep_p = struct.unpack('>L', bytes(buffer[30:34]))[0]
+        else:
+            address4 = None
+            wep_p = struct.unpack('>L', bytes(buffer[24:28]))[0]
 
-        if isinstance(frame_control.subtype, IEEE80211DataFrameType) and frame_control.subtype == IEEE80211DataFrameType.DATA:
-            wep_p = struct.unpack('<L', bytes(buffer[24:28]))[0]
-            wep_p = '{:0>32b}'.format(wep_p)
-            print(wep_p)
-            pkt.wep_iv = wep_p
-            # pkt.wep_iv = hex(int(wep_p[:24], 2))
+        wep_p = '{:0>32b}'.format(wep_p)
+        wep_iv = hex(int(wep_p[:24], 2))
 
-        return pkt
+        return cls(address1=address1, address2=address2, address3=address3, address4=address4, seqnr=seqnr,
+                   wep_iv=wep_iv)
+
+
+@unique
+class DSBits(Enum):
+    IBSS = 0
+    TO_AP = 1
+    FROM_AP = 2
+    WDS = 3
 
 
 @unique
