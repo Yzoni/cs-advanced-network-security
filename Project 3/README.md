@@ -1,3 +1,29 @@
+## Python modular Intrusion Prevention System (IPS)
+
+Added IEEE802.11 Parsing
+
+#### Usage:
+
+Directly:
+```bash
+python3 ips.py [-h] pcap_in log_out
+```
+The `pcap_in` argument can be a saved PCAP file or a live device.
+
+or to install dependencies before running:
+```bash
+run.sh in_pcap out_log
+```
+
+The log is saved in JSON format
+
+#### Tests:
+Tests can be run per module with PyTest, for instance:
+```bash
+pytest modules/ieee80211
+```
+
+
 Questions from assignment:
 
 ####Task 1:
