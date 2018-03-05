@@ -49,13 +49,13 @@ def radiotap_loop(sniffer):
 
     pkt_c = 0
     for ts, pkt in sniffer:
-        # try:
-        pkt_c += 1
-        log().debug('Received IEEE80211 packet ({:d})'.format(pkt_c))
-        ieee80211_module.receive_packet(pkt, pkt_c)
-        # except Exception as e:
-        #     print(e)
-        #     log().error('Could not parse IEEE80211 packet ({:d})'.format(pkt_counter))
+        try:
+            pkt_c += 1
+            log().debug('Received IEEE80211 packet ({:d})'.format(pkt_c))
+            ieee80211_module.receive_packet(pkt, pkt_c)
+        except Exception as e:
+            print(e)
+            log().error('Could not parse IEEE80211 packet ({:d})'.format(pkt_c))
 
 
 if __name__ == '__main__':
