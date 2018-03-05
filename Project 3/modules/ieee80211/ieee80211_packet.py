@@ -26,9 +26,9 @@ class RadioTapHeader:
         return self.__dict__
 
 
-class IEEE80211Packet:
-    fields = ['version', 'type', 'subtype', 'duration', 'dst', 'src', 'bssid', 'seqnr', 'data', 'order_flag',
-              'protected_flag', 'more_data_flag', 'pwr_flag', 'retry_flag', 'more_fragments_flag', 'ds_flag']
+class IEEE80211FrameControl:
+    fields = ['version', 'm_type', 'subtype', 'duration', 'order_flag', 'protected_flag', 'more_data_flag', 'pwr_flag',
+              'retry_flag', 'more_fragments_flag', 'ds_flag']
 
     def __init__(self, **kwargs):
         for key in self.fields:
@@ -70,35 +70,72 @@ class IEEE80211Packet:
 
             return order_flag, protected_flag, more_data_flag, pwr_flag, retry_flag, more_fragments_flag, ds_flag
 
-        def _parse_seq_nr(sub_buffer):
-            fragment_nr = 0
-            seq_nr = sub_buffer >> 4
-            return fragment_nr, seq_nr
-
         version, m_type, subtype = _parse_frame_control(struct.unpack('>B', bytes([buffer[0]]))[0])
         order_flag, protected_flag, more_data_flag, pwr_flag, retry_flag, more_fragments_flag, ds_flag = _parse_flags(
             struct.unpack('>B', bytes([buffer[1]]))[0])
         duration = struct.unpack('<H', bytes(buffer[2:4]))[0]
-        dst = parse_mac_field(buffer[4:10])
-        src = parse_mac_field(buffer[10:16])
-        bssid = parse_mac_field(buffer[16:22])
 
-        pkt = cls(subtype=subtype, duration=duration, dst=dst, src=src, bssid=bssid, order_flag=order_flag,
+        pkt = cls(m_type=m_type, subtype=subtype, duration=duration, order_flag=order_flag,
                   protected_flag=protected_flag, more_data_flag=more_data_flag, pwr_flag=pwr_flag,
                   retry_flag=retry_flag, more_fragments_flag=more_fragments_flag, ds_flag=ds_flag)
-
-        if not isinstance(subtype, IEEE80211ControlFrame):
-            pkt.fragment_nr, pkt.seqnr = _parse_seq_nr(struct.unpack('<H', bytes(buffer[22:24]))[0])
-
-        if isinstance(subtype, IEEE80211DataFrame) and subtype == IEEE80211DataFrame.DATA:
-            wep_p = struct.unpack('>L', bytes(buffer[24:28]))[0]
-            wep_p = '{:0>32b}'.format(wep_p)
-            pkt.wep_iv = int(wep_p[:24], 2)
 
         return pkt
 
     def to_json(self):
         return self.__dict__
+
+
+class ManagementFrameDisAuth:
+    fields = ['da', 'sa', 'bssid', 'seqctl', 'reason']
+
+    def __init__(self, **kwargs):
+        for key in self.fields:
+            if key in kwargs:
+                setattr(self, key, kwargs[key])
+
+    @classmethod
+    def from_pkt(cls, buffer, frame_control: IEEE80211FrameControl):
+
+        def _parse_seq_nr(sub_buffer):
+            fragment_nr = 0
+            seq_nr = sub_buffer >> 4
+            return fragment_nr, seq_nr
+
+        da = parse_mac_field(buffer[4:10])
+        sa = parse_mac_field(buffer[10:16])
+        bssid = parse_mac_field(buffer[16:22])
+        fragment_nr, seqnr = _parse_seq_nr(struct.unpack('<H', bytes(buffer[22:24]))[0])
+
+        return cls(da=da, sa=sa, bssid=bssid, fragment_nr=fragment_nr, seqnr=seqnr)
+
+
+class DataFrame:
+    fields = ['address1', 'address2', 'address3', 'address4', 'seqctl', 'body']
+
+    @classmethod
+    def from_pkt(cls, buffer, frame_control: IEEE80211FrameControl):
+        def _parse_seq_nr(sub_buffer):
+            fragment_nr = 0
+            seq_nr = sub_buffer >> 4
+            return fragment_nr, seq_nr
+
+        address1 = parse_mac_field(buffer[4:10])
+        address2 = parse_mac_field(buffer[10:16])
+        address3 = parse_mac_field(buffer[16:22])
+
+        pkt = cls()
+
+        if not isinstance(frame_control.subtype, IEEE80211ControlFrame):
+            pkt.fragment_nr, pkt.seqnr = _parse_seq_nr(struct.unpack('<H', bytes(buffer[22:24]))[0])
+
+        if isinstance(frame_control.subtype, IEEE80211DataFrame) and frame_control.subtype == IEEE80211DataFrame.DATA:
+            wep_p = struct.unpack('<L', bytes(buffer[24:28]))[0]
+            wep_p = '{:0>32b}'.format(wep_p)
+            print(wep_p)
+            pkt.wep_iv = wep_p
+            # pkt.wep_iv = hex(int(wep_p[:24], 2))
+
+        return pkt
 
 
 @unique
