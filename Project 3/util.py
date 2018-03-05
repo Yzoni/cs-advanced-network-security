@@ -12,3 +12,9 @@ def parse_ipv4_field(buffer: list) -> str:
 
 def parse_mac_field(buffer: list) -> str:
     return ':'.join(['{:0>2x}'.format(struct.unpack('>B', bytes([x]))[0]) for x in buffer])
+
+def bit_enabled(octal, bit_num):
+    if (octal & (1 << bit_num)) != 0:
+        return True
+    else:
+        return False

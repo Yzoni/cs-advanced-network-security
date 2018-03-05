@@ -13,16 +13,17 @@ class IEEE80211Module(IPSModule):
 
         super().__init__()
 
-    def receive_packet(self, pkt):
+    def receive_packet(self, pkt, pkt_c):
         radio_tap = RadioTapHeader.from_pkt(pkt)
         ieee80211 = IEEE80211Packet.from_pkt(pkt[radio_tap.length:])
 
-        if isinstance(ieee80211.subtype, IEEE80211DataFrame):
-
+        if isinstance(ieee80211.subtype, IEEE80211DataFrame) \
+                and ieee80211.subtype == IEEE80211DataFrame.DATA \
+                and not ieee80211.retry_flag:
             self.ieee80211_db.store_source_iv(ieee80211.src, ieee80211.wep_iv)
 
             if self.ieee80211_db.past_wep_replay_threshold(ieee80211.src):
-                return ErrorResponse('Probable WEP replay attack identified from {}'.format(ieee80211.src), {
+                return ErrorResponse('Probable WEP replay attack identified from {} [{}]'.format(ieee80211.src, pkt_c), {
                     'pkt': {
                         'radio_tap': radio_tap.to_json(),
                         'ieeee80211': ieee80211.to_json()

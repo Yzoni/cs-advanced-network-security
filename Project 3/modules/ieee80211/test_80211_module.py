@@ -18,6 +18,23 @@ def deauth_ieee80211():
            b'\x00\x25\x9c\xd5\x69\xe1\x60\x98'
 
 
+@pytest.fixture
+def flags_ieee80211():
+    return b'\x08\x4b\x3a\x01\x50\x0f\x80\xfd\x84\x40\x00\x25\x9c\xd5\x69\xe1' \
+           b'\xff\xff\xff\xff\xff\xff\x50\xb7\xc0\xbd\xd1\xf1\x17\x90'
+
+
+def test_parse_ieee80211_flags(flags_ieee80211):
+    header = IEEE80211Packet.from_pkt(flags_ieee80211)
+    assert header.order_flag == False
+    assert header.protected_flag == True
+    assert header.more_data_flag == False
+    assert header.pwr_flag == False
+    assert header.retry_flag == True
+    assert header.more_fragments_flag == False
+    assert header.ds_flag == 3
+
+
 def test_parse_ieee80211_data_frame(wep_arp_broadcast):
     header = IEEE80211Packet.from_pkt(wep_arp_broadcast)
     assert type(header.subtype) == IEEE80211DataFrame

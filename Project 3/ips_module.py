@@ -6,5 +6,5 @@ class IPSModule:
     Modules should extend this class
     """
 
-    def receive_packet(self, pkt) -> IPSResponse:
+    def receive_packet(self, pkt, pkt_c) -> IPSResponse:
         raise NotImplementedError

@@ -23,7 +23,7 @@ class ARPModule(IPSModule):
 
         super().__init__()
 
-    def receive_packet(self, pkt) -> IPSResponse:
+    def receive_packet(self, pkt, ts) -> IPSResponse:
         if not self.has_valid_arp_src_mac_address(pkt):
             return ErrorResponse('Packet has invalid ARP source MAC address', {'pkt': repr(pkt)})
 

@@ -36,7 +36,7 @@ def ether_loop(sniffer):
         try:
             if e.type == ETHER_TYPE_ARP:
                 log().info('Received ARP packet')
-                arp_module.receive_packet(e)
+                arp_module.receive_packet(e, ts)
             else:
                 log().info('Received packet not supported by IPS')
         except AttributeError:
@@ -45,15 +45,17 @@ def ether_loop(sniffer):
 
 
 def radiotap_loop(sniffer):
-    pkt_counter = 0
+    ieee80211_module = IEEE80211Module()
+
+    pkt_c = 0
     for ts, pkt in sniffer:
-        try:
-            pkt_counter += 1
-            log().debug('Received IEEE80211 packet ({:d})'.format(pkt_counter))
-            ieee80211_module = IEEE80211Module()
-            ieee80211_module.receive_packet(pkt)
-        except Exception:
-            log().error('Could not parse IEEE80211 packet ({:d})'.format(pkt_counter))
+        # try:
+        pkt_c += 1
+        log().debug('Received IEEE80211 packet ({:d})'.format(pkt_c))
+        ieee80211_module.receive_packet(pkt, pkt_c)
+        # except Exception as e:
+        #     print(e)
+        #     log().error('Could not parse IEEE80211 packet ({:d})'.format(pkt_counter))
 
 
 if __name__ == '__main__':
