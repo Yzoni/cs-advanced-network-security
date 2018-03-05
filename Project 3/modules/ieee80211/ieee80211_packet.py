@@ -85,7 +85,7 @@ class IEEE80211FrameControl:
         return pkt
 
 
-class IEEE80211ManagementFrameDisAuth:  # TODO REASON
+class IEEE80211ManagementFrameDisAuth:
     fields = ['da', 'sa', 'bssid', 'seqctl', 'reason']
 
     def __init__(self, **kwargs):
@@ -105,8 +105,9 @@ class IEEE80211ManagementFrameDisAuth:  # TODO REASON
         sa = parse_mac_field(buffer[10:16])
         bssid = parse_mac_field(buffer[16:22])
         fragment_nr, seqnr = _parse_seq_nr(struct.unpack('<H', bytes(buffer[22:24]))[0])
+        reason = struct.unpack('<H', bytes(buffer[24:26]))[0]
 
-        return cls(da=da, sa=sa, bssid=bssid, fragment_nr=fragment_nr, seqnr=seqnr)
+        return cls(da=da, sa=sa, bssid=bssid, fragment_nr=fragment_nr, seqnr=seqnr, reason=reason)
 
 
 class IEEE80211DataFrame:

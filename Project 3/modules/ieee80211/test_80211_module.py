@@ -72,7 +72,7 @@ def test_parse_ieee80211_management_frame_deauth(deauth_ieee80211):
     assert management_frame.da == 'c0:bd:d1:f1:17:90'
     assert management_frame.sa == '00:25:9c:d5:69:e1'
     assert management_frame.bssid == '00:25:9c:d5:69:e1'
-    # assert management_frame.reason == 0x0003
+    assert management_frame.reason == 0x0003
 
 
 def test_parse_ieee80211_management_frame_disass(disass_ieee80211):
@@ -85,7 +85,7 @@ def test_parse_ieee80211_management_frame_disass(disass_ieee80211):
     assert management_frame.da == 'c0:bd:d1:f1:17:90'
     assert management_frame.sa == '00:25:9c:d5:69:e1'
     assert management_frame.bssid == '00:25:9c:d5:69:e1'
-    # assert management_frame.reason == 0x0008
+    assert management_frame.reason == 0x0008
 
 
 def test_error_wep_iv_threshold(wep_arp_broadcast):

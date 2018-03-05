@@ -10,10 +10,10 @@ an alert should be triggered by the IPS.
 ####Task 2:
 Detection of ARP-request replay attack on WEP encrypted network.
 
-The alert configuration looks for multiple duplicate frames, not rebroadcasts but actual duplicates, duplicate IVs, 
-although not required for an attack a deauthentication bursts.
+The implemented alert configuration monitors for multiple duplicate frames with duplicate IVs, not rebroadcasts 
+but actual duplicates. Although not implemented a possible optimization would be to also scan for bursts of 
+deauthentication/disassociation frames.
 
-((((wlan.bssid == 00:25:9c:d5:69:e1) && !(wlan.fc.type_subtype == 0x0024)) ) && !(wlan.fc.type_subtype == 0x0008)) && !(wlan.fc.retry == 1)
 
 ####Task 3:
 In the Netherlands, the wetboek van strafrecht has the following relevant law about, interfering with third party networks:
