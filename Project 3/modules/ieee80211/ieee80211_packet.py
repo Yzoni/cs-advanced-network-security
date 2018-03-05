@@ -47,13 +47,19 @@ class IEEE80211FrameControl:
             # Subtype
             if m_type == 0:
                 try:
-                    subtype = IEEE80211ManagementFrame(int(s_sub_buffer[:4], 2))
+                    subtype = IEEE80211ManagementFrameType(int(s_sub_buffer[:4], 2))
                 except ValueError:
-                    subtype = IEEE80211ManagementFrame.OTHER
+                    subtype = IEEE80211ManagementFrameType.OTHER
             elif m_type == 1:
-                subtype = IEEE80211ControlFrame(int(s_sub_buffer[:4], 2))
+                try:
+                    subtype = IEEE80211ControlFrameType(int(s_sub_buffer[:4], 2))
+                except ValueError:
+                    subtype = IEEE80211ControlFrameType.OTHER
             elif m_type == 2:
-                subtype = IEEE80211DataFrame(int(s_sub_buffer[:4], 2))
+                try:
+                    subtype = IEEE80211DataFrameType(int(s_sub_buffer[:4], 2))
+                except ValueError:
+                    subtype = IEEE80211DataFrameType.OTHER
             else:
                 subtype = None
 
@@ -85,7 +91,7 @@ class IEEE80211FrameControl:
         return self.__dict__
 
 
-class ManagementFrameDisAuth:
+class IEEE80211ManagementFrameDisAuth: # TODO REASON
     fields = ['da', 'sa', 'bssid', 'seqctl', 'reason']
 
     def __init__(self, **kwargs):
@@ -109,7 +115,7 @@ class ManagementFrameDisAuth:
         return cls(da=da, sa=sa, bssid=bssid, fragment_nr=fragment_nr, seqnr=seqnr)
 
 
-class DataFrame:
+class IEEE80211DataFrame:
     fields = ['address1', 'address2', 'address3', 'address4', 'seqctl', 'body']
 
     @classmethod
@@ -125,10 +131,10 @@ class DataFrame:
 
         pkt = cls()
 
-        if not isinstance(frame_control.subtype, IEEE80211ControlFrame):
+        if not isinstance(frame_control.subtype, IEEE80211ControlFrameType):
             pkt.fragment_nr, pkt.seqnr = _parse_seq_nr(struct.unpack('<H', bytes(buffer[22:24]))[0])
 
-        if isinstance(frame_control.subtype, IEEE80211DataFrame) and frame_control.subtype == IEEE80211DataFrame.DATA:
+        if isinstance(frame_control.subtype, IEEE80211DataFrameType) and frame_control.subtype == IEEE80211DataFrameType.DATA:
             wep_p = struct.unpack('<L', bytes(buffer[24:28]))[0]
             wep_p = '{:0>32b}'.format(wep_p)
             print(wep_p)
@@ -139,7 +145,7 @@ class DataFrame:
 
 
 @unique
-class IEEE80211ManagementFrame(Enum):
+class IEEE80211ManagementFrameType(Enum):
     ASSOCIATION_REQUEST = 0
     ASSOCIATION_RESPONSE = 1
     REASSOCIATION_REQUEST = 2
@@ -154,7 +160,7 @@ class IEEE80211ManagementFrame(Enum):
 
 
 @unique
-class IEEE80211ControlFrame(Enum):
+class IEEE80211ControlFrameType(Enum):
     RTS = 11
     CTS = 12
     ACK = 13
@@ -162,7 +168,7 @@ class IEEE80211ControlFrame(Enum):
 
 
 @unique
-class IEEE80211DataFrame(Enum):
+class IEEE80211DataFrameType(Enum):
     DATA = 0
     DATA_CF_ACK = 1
     DATA_CF_POLL = 2
