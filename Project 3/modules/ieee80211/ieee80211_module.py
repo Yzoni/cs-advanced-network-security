@@ -40,12 +40,14 @@ class IEEE80211Module(IPSModule):
 
                 self.ieee80211_db.store_source_iv(src, data_frame.wep_iv)
 
-                if self.ieee80211_db.past_wep_replay_threshold(src):
-                    self.ieee80211_db.clear_source_iv(src)
-                    return ErrorResponse('Probable WEP replay attack identified from {} [{}]'.format(src, pkt_c),
-                                         {
-                                             'pkt': {
-                                                 'radio_tap': radio_tap.__dict__,
-                                                 'ieeee80211': data_frame.__dict__
-                                             }
-                                         })
+                exceeds_threshold, iv = self.ieee80211_db.past_wep_replay_threshold(src)
+                if exceeds_threshold:
+                    self.ieee80211_db.clear_source_iv(src, iv)
+                    return ErrorResponse(
+                        'Probable WEP replay attack identified from {}, IV: {} [{}]'.format(src, iv, pkt_c),
+                        {
+                            'pkt': {
+                                'radio_tap': radio_tap.__dict__,
+                                'ieeee80211': data_frame.__dict__
+                            }
+                        })

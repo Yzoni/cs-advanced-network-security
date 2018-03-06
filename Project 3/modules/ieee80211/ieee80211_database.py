@@ -13,10 +13,12 @@ class IEEE80211Database:
     def store_source_iv(self, src, iv):
         self.src_iv[src].append(iv)
 
-    def past_wep_replay_threshold(self, src) -> bool:
+    def past_wep_replay_threshold(self, src) -> (bool, str):
         most_common = Counter(self.src_iv[src]).most_common(5)
-        if most_common[0][1] >= self.iv_threshold:
-            return True
+        most = most_common[0]
+        if most[1] >= self.iv_threshold:
+            return True, most[0]
+        return False, most[0]
 
-    def clear_source_iv(self, src):
-        self.src_iv.pop(src)
+    def clear_source_iv(self, src, iv):
+        self.src_iv[src] = list(filter(lambda x: x != iv, self.src_iv[src]))
