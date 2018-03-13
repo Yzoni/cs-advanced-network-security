@@ -1,4 +1,6 @@
 import ipaddress
+
+from bitarray import bitarray
 from dnslib import *
 import subprocess
 import progressbar
@@ -9,6 +11,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import csv
 from datastructures.bloomfilter import BloomFilter
+from datastructures.trie import Trie
 from random import shuffle
 import time
 
@@ -248,11 +251,75 @@ def plot_task_3():
     plt.show()
 
 
+def test_trie():
+    stop_count = 100000
+    trie_single_adjecent = Trie(root_data='ACCEPT', strides=1)
+    trie_double_adjecent = Trie(root_data='ACCEPT', strides=2)
+
+    trie_single_random = Trie(root_data='ACCEPT', strides=1)
+    trie_double_random = Trie(root_data='ACCEPT', strides=2)
+
+    count = 0
+    adjecent_ips = list()
+    with open('data-raw-table.txt', mode='r') as f:
+        for line in f:
+            subnet = ipaddress.ip_network(line.rstrip().split('\t')[0])
+            for idx, host in enumerate(subnet.hosts()):
+                count += 1
+                if count > stop_count:
+                    break
+                adjecent_ips.append(host)
+    for host in adjecent_ips:
+        trie_single_adjecent.add(bitarray('{:0>32b}'.format(int(host))), 'DROP')
+        trie_double_adjecent.add(bitarray('{:0>32b}'.format(int(host))), 'DROP')
+
+    count = 0
+    random_ips = list()
+    with open('ip.txt', mode='r') as f:
+        for line in f:
+            count += 1
+            if count > stop_count:
+                break
+            random_ips.append(ipaddress.ip_address(line.rstrip()))
+    for host in random_ips:
+        trie_single_random.add(bitarray('{:0>32b}'.format(int(host))), 'DROP')
+        trie_double_random.add(bitarray('{:0>32b}'.format(int(host))), 'DROP')
+
+    ########
+    # GET
+    ########
+    start = time.time()
+    for host in adjecent_ips:
+        trie_single_adjecent.longest_prefix(bitarray('{:0>32b}'.format(int(host))))
+    end_trie_single_adjecent = time.time() - start
+    print('trie 1 bit adjecent {:f} seconds'.format(end_trie_single_adjecent))
+
+    start = time.time()
+    for host in adjecent_ips:
+        trie_double_adjecent.longest_prefix(bitarray('{:0>32b}'.format(int(host))))
+    end_trie_double_adjecent = time.time() - start
+    print('trie 2 bit adjecent {:f} seconds'.format(end_trie_double_adjecent))
+
+    start = time.time()
+    for host in random_ips:
+        trie_single_random.longest_prefix(bitarray('{:0>32b}'.format(int(host))))
+    end_trie_single_random = time.time() - start
+    print('trie 1 bit random {:f} seconds'.format(end_trie_single_random))
+
+    start = time.time()
+    for host in random_ips:
+        trie_double_random.longest_prefix(bitarray('{:0>32b}'.format(int(host))))
+    end_trie_double_random = time.time() - start
+    print('trie 2 bit random {:f} seconds'.format(end_trie_double_random))
+
+
+
 if __name__ == '__main__':
     # flush_filter()
     # generate_rules()
     # generate_ipset_rules()
     # generate_random_ip_list()
-    do_plot()
+    # do_plot()
     # task_3()
     # plot_task_3()
+    test_trie()
