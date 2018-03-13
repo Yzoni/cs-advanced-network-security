@@ -1,3 +1,8 @@
+"""
+For strides higher than one padding is used. This means all possible endings are generated
+and inserted with the given data. If for a padded entry there already exists an entry with data, the new
+entry is discarded.
+"""
 from bitarray import bitarray
 import itertools
 
@@ -135,7 +140,3 @@ def test_trie_longest_prefix_multibit_padding_2():
     trie.add(bitarray('10101'), 'ACCEPT')
     assert trie.longest_prefix(bitarray('101010')) == 'DROP'
     assert trie.longest_prefix(bitarray('10101')) == 'ACCEPT'
-
-
-if __name__ == '__main__':
-    test_trie_longest_prefix_longer_2()
