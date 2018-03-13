@@ -1,4 +1,5 @@
 from bitarray import bitarray
+import itertools
 
 
 class Trie:
@@ -9,42 +10,69 @@ class Trie:
         super().__init__()
 
     def add(self, bits: bitarray, data):
-        node = self.root
-        for idx, bit in enumerate(bits):
-            if bit == 0:
-                if not node.zero:
-                    node.zero = self._Node()
-                node = node.zero
-            if bit == 1:
-                if not node.one:
-                    node.one = self._Node()
-                node = node.one
+        def recurse(bits, node, data):
+            bit = bits[:self.strides]
 
-            if idx == len(bits) - 1:
-                node.data = data
+            if len(bit) < self.strides:  # Last stride
+                perms = self._padded_permutations(bit, self.strides)
+                for p in perms:
+                    if not node.branches.get(str(p), None) or not node.branches[str(p)].data:
+                        node.branches[str(p)] = self._Node(data=data)
+            else:
+                next_node = node.branches.get(str(bit), None)
+                if next_node:  # Node already exists
+                    node = next_node
+                else:
+                    node.branches[str(bit)] = self._Node()
+                    node = node.branches[str(bit)]
+
+                if len(bits[self.strides:]) == 0:
+                    node.data = data
+
+                if len(bits) > self.strides:
+                    return recurse(bits[self.strides:], node, data)
+
+        return recurse(bits, self.root, data)
 
     def longest_prefix(self, bits: bitarray):
-        node = self.root
+        def recurse(bits, node, last_matched_data):
+            bit = bits[:self.strides]
 
-        def recurse(bits, node):
-            if bits[0]:
-                if node.one:
-                    node = node.one
+            if node.data:
+                last_matched_data = node.data
+
+            if len(bit) < self.strides:
+                perms = self._padded_permutations(bit, self.strides)
+                for p in perms:
+                    next_node = node.branches.get(str(p), None)
+                    if next_node and next_node.data:
+                        return next_node.data
             else:
-                if node.zero:
-                    node = node.zero
+                next_node = node.branches.get(str(bit), None)
+                if next_node:
+                    return recurse(bits[self.strides:], next_node, last_matched_data)
 
-            if len(bits) > 1:
-                return recurse(bits[1:], node)
+            return last_matched_data
 
-            return node.data
+        return recurse(bits, self.root, self.root.data)
 
-        return recurse(bits, node)
+    @staticmethod
+    def _padded_permutations(bits: bitarray, strides):
+        padding_size = strides - len(bits)
+        perm = [p for p in itertools.product([1, 0], repeat=padding_size)]
+        return [bits + bitarray(p) for p in perm]
 
     class _Node:
-        data = None
-        zero = None
-        one = None
+
+        def __init__(self, branches=None, data=None) -> None:
+            if branches is None:
+                self.branches = dict()
+            self.data = data
+            super().__init__()
+
+
+def test_padding():
+    assert Trie._padded_permutations(bitarray('10'), 3) == [bitarray('101'), bitarray('100')]
 
 
 def test_trie_add():
@@ -52,7 +80,17 @@ def test_trie_add():
     trie.add(bitarray('101'), 'DROP')
 
 
-def test_trie_longest_prefix_equal():
+def test_trie_add_multibit():
+    trie = Trie(root_data='ACCEPT', strides=3)
+    trie.add(bitarray('101'), 'DROP')
+
+
+def test_trie_add_multibit_padding():
+    trie = Trie(root_data='ACCEPT', strides=3)
+    trie.add(bitarray('1010'), 'DROP')
+
+
+def test_trie_longest_prefix():
     trie = Trie(root_data='ACCEPT', strides=1)
     trie.add(bitarray('101'), 'DROP')
 
@@ -65,3 +103,39 @@ def test_trie_longest_prefix_longer():
 
     assert trie.longest_prefix(bitarray('1010001001')) == 'DROP'
 
+
+def test_trie_longest_prefix_longer_2():
+    trie = Trie(root_data='ACCEPT', strides=1)
+    trie.add(bitarray('101'), 'DROP')
+    trie.add(bitarray('10101'), 'ACCEPT')
+    trie.longest_prefix(bitarray('1010001001'))
+
+    assert trie.longest_prefix(bitarray('1010001001')) == 'DROP'
+    assert trie.longest_prefix(bitarray('101010101')) == 'ACCEPT'
+
+
+def test_trie_longest_prefix_multibit_longer():
+    trie = Trie(root_data='ACCEPT', strides=3)
+    trie.add(bitarray('101010'), 'DROP')
+
+    assert trie.longest_prefix(bitarray('101010')) == 'DROP'
+
+
+def test_trie_longest_prefix_multibit_padding():
+    trie = Trie(root_data='ACCEPT', strides=3)
+    trie.add(bitarray('10101'), 'DROP')
+    trie.add(bitarray('10100'), 'ACCEPT')
+    assert trie.longest_prefix(bitarray('10101')) == 'DROP'
+    assert trie.longest_prefix(bitarray('10100')) == 'ACCEPT'
+
+
+def test_trie_longest_prefix_multibit_padding_2():
+    trie = Trie(root_data='ACCEPT', strides=3)
+    trie.add(bitarray('101010'), 'DROP')
+    trie.add(bitarray('10101'), 'ACCEPT')
+    assert trie.longest_prefix(bitarray('101010')) == 'DROP'
+    assert trie.longest_prefix(bitarray('10101')) == 'ACCEPT'
+
+
+if __name__ == '__main__':
+    test_trie_longest_prefix_longer_2()
