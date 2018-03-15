@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% PACKAGES 
+%% PACKAGES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \documentclass{article}
 \usepackage[utf8]{inputenc}
@@ -28,7 +28,7 @@
 \setcounter{MaxMatrixCols}{20}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% HEADING 
+%% HEADING
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \rule{\textwidth}{1pt}
 Advanced Network Security \hfill Yorick de Boer, 4287304 \\
@@ -37,10 +37,10 @@ Project 4 \\
 \vspace{0.5cm}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% CONTENTS 
+%% CONTENTS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Task 1}
-About the algorithm used in IPTables can be concluded that it has a time complexity of $O(N)$. 
+About the algorithm used in IPTables can be concluded that it has a time complexity of $O(N)$.
 
 Instead of 2 million rules a maximum of $20000$ with steps of $1000$ was used because manually adding 2 million rules rules takes ridiculously long. Doing more is possible, but this was enough to come to the conclusion for the used algorithm. (Only later I found out there is a faster way by using the backup option.)
 
@@ -49,9 +49,9 @@ Instead of 2 million rules a maximum of $20000$ with steps of $1000$ was used be
 \end{figure}
 
 \section{Task 2}
-A method to structure the same filtering rules would be to do filter per range. However my current rule set consists of random ips this is not really possible. \\
+A method to restructure the same filtering rules to increase performance, would be to do filter per range. However my current rule set consists of random ips so this is not really an option for me. \\
 \\
-The internal pattern matching can be made more efficient trough IPSet, because this is a set and a (hash)set has a lookup time of O(1). Again the test was not run over 2 million ips. It may be possible that the set table has a maximum size and starts doing chaining when a collision occurs. The time complexity will not be O(1) then anymore. 
+The internal pattern matching can be made more efficient trough IPSet, because this is a set and a (hash)set has a lookup time of O(1). Again the test was not run over 2 million ips. It may be possible that the set table has a maximum size and starts doing chaining when a collision occurs if I would have been able to test with more rules. The time complexity will increase then.
 
 \begin{figure}[H]
 \includegraphics[scale=0.6]{task2}
@@ -66,7 +66,7 @@ For the IPTable datastructure a Python list structure was used. For the hashtabl
 
 \section{Task 4}
 (see code: datastructures/trie.py) \\
-Theoretically you would expect the execution time to halve between single bit stride an a two bit stride, because half the comparisons have to be done. 
+Theoretically you would expect the execution time to halve between single bit stride an a two bit stride, because half the comparisons have to be done.
 
 \begin{verbatim}
 trie 1 bit adjecent 7.025880 seconds
