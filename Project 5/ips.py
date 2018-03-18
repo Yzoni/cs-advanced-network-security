@@ -19,7 +19,7 @@ import pcap
 
 from modules.arp.arp_module import ARPModule, ACL
 from modules.ieee80211.ieee80211_module import IEEE80211Module
-from modules.ssl.ssl_module import SSLModule
+from modules.predict_ssl.predict_ssl_module import PredictSSLModule
 
 ETHER_TYPE_IPV4 = 0x0800
 ETHER_TYPE_IPV6 = 0x86DD
@@ -41,29 +41,30 @@ LINKTYPE_IEEE802_11_RADIOTAP = 127
 
 log = get_logger()
 
+
 def ether_loop(sniffer):
     if args.arp_config:
         arp_module = ARPModule(ACL.from_file(Path(args.arp_config)))
     else:
         arp_module = ARPModule()
 
-    ssl_module = SSLModule()
+    ssl_module = PredictSSLModule()
 
     for ts, pkt in sniffer:
         e = Ether(pkt)
-        try:
-            if e.type == ETHER_TYPE_ARP:
-                log.info('Received ARP packet')
-                arp_module.receive_packet(e, ts)
-            if e.type == ETHER_TYPE_IPV4:
-                if e.haslayer(TCP):
-                    if (e[TCP].sport == SSL_PORT) or (e[TCP].dport == SSL_PORT):
-                        ssl_module.receive_packet(e, ts)
-            else:
-                log.info('Received packet not supported by IPS')
-        except AttributeError as e:
-            log.info('Received packet does not have a type {}'.format(e))
-            continue
+        # try:
+        if e.type == ETHER_TYPE_ARP:
+            log.info('Received ARP packet')
+            arp_module.receive_packet(e, ts)
+        if e.type == ETHER_TYPE_IPV4:
+            if e.haslayer(TCP):
+                if (e[TCP].sport == SSL_PORT) or (e[TCP].dport == SSL_PORT):
+                    ssl_module.receive_packet(e, ts)
+        else:
+            log.info('Received packet not supported by IPS')
+        # except AttributeError as e:
+        #     log.info('Received packet does not have a type {}'.format(e))
+        #     continue
 
 
 def radiotap_loop(sniffer):
@@ -93,7 +94,6 @@ if __name__ == '__main__':
 
     if args.pcap_in and args.log_out:
         init_logger(args.log_out)
-
 
         log.info('IPS STARTED')
 

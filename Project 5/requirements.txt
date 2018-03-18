@@ -1,3 +1,5 @@
 pypcap
-scapy-python3
+scapy-ssl_tls
+pathlib2
 json-log-formatter
+graphviz
