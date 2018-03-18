@@ -2,6 +2,8 @@ from scapy.all import *
 from datetime import datetime
 from enum import Enum
 from pathlib2 import Path
+import numpy as np
+import csv
 
 from scapy.layers.inet import IP, TCP
 from scapy.layers.ssl_tls import TLSRecord, TLSHandshake, TLSHandshakes
@@ -62,13 +64,30 @@ class PredictSSLModule(IPSModule):
     def collect_training_data(self, app_name, file_name, ip=None):
         log.info('Saving train data from {} to {}'.format(app_name, file_name))
 
-        with file_name.open() as f:
+        with file_name.open(mode='w') as f:
             # Aggregate complete database
             if not ip:
                 agg = None
                 for k, v in self.db:
                     agg += v
                 f.write('{},{}\n'.format(app_name, agg))
+
+    def predict_app(self, model_file_name, to_predict_matrix):
+        cost = np.inf
+        app_name = 'Not found'
+
+        with model_file_name.open(mode='r') as f:
+            reader = csv.reader(f, delimiter=',')
+            for row in reader:
+                model_sample = row[1:]
+                model_sample_name = row[0]
+
+                new_cost = np.linalg.norm(model_sample - to_predict_matrix)
+                if new_cost < cost:
+                    cost = new_cost
+                    app_name = model_sample_name
+
+        return app_name, cost
 
     def _determine_states(self, content_type, handshake_types):
         db_states = list()
