@@ -1,6 +1,7 @@
 from scapy.all import *
 from datetime import datetime
 from enum import Enum
+from pathlib2 import Path
 
 from scapy.layers.inet import IP, TCP
 from scapy.layers.ssl_tls import TLSRecord, TLSHandshake, TLSHandshakes
@@ -10,6 +11,7 @@ from ips_module import IPSModule
 from predict_ssl_database import PredictSSLDatabase
 from predict_ssl_database import SSL_LOG_STATES
 
+dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
 log = get_logger()
 
 
@@ -41,8 +43,9 @@ class ContentTypes(Enum):
 
 class PredictSSLModule(IPSModule):
 
-    def __init__(self):
-        self.db = PredictSSLDatabase()
+    def __init__(self, dir_fingerprints_out):
+        self.dir_fingerprints_out = dir_fingerprints_out
+        self.db = PredictSSLDatabase(self.dir_fingerprints_out)
 
     def receive_packet(self, pkt, pkt_c):
         content_type = self._get_tls_content_type(pkt)
@@ -54,9 +57,18 @@ class PredictSSLModule(IPSModule):
         db_states = self._determine_states(content_type, handshake_types)
 
         self.db.save_new_status((pkt[IP].src, pkt[TCP].sport), (pkt[IP].dst, pkt[TCP].dport), db_states)
+        self.db.export_to_file((pkt[IP].src, pkt[TCP].sport), (pkt[IP].dst, pkt[TCP].dport))
 
-        self.db.export_to_file((pkt[IP].src, pkt[TCP].sport), (pkt[IP].dst, pkt[TCP].dport),
-                               '/home/y/Documents/cs-advanced-network-security')
+    def collect_training_data(self, app_name, file_name, ip=None):
+        log.info('Saving train data from {} to {}'.format(app_name, file_name))
+
+        with file_name.open() as f:
+            # Aggregate complete database
+            if not ip:
+                agg = None
+                for k, v in self.db:
+                    agg += v
+                f.write('{},{}\n'.format(app_name, agg))
 
     def _determine_states(self, content_type, handshake_types):
         db_states = list()
@@ -88,7 +100,6 @@ class PredictSSLModule(IPSModule):
         else:
             print('Content type unknown: ' + str(content_type))
 
-        print(str(db_states) + str(content_type) + str(handshake_types))
         return db_states
 
     def _get_tls_content_type(self, pkt):

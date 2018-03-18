@@ -2,6 +2,8 @@ from collections import defaultdict
 from graphviz import Digraph
 import numpy as np
 
+from ips_logger import get_logger
+
 SSL_LOG_STATES = {
     'start': 0,
     'client_hello': 1,
@@ -19,21 +21,31 @@ SSL_LOG_STATES = {
 }
 INV_SSL_LOG_STATES = {v: k for k, v in SSL_LOG_STATES.iteritems()}
 
+log = get_logger()
+
 
 class PredictSSLDatabase:
-    def __init__(self):
+    def __init__(self, base_out_path):
         self.db = dict()
+
+        log.info('Saving fingerprints to {}'.format(base_out_path))
+
+        if not base_out_path.exists():
+            base_out_path.mkdir()
+            log.info('Fingerprint out directory did not exist, creating it...')
+
+        self.base_out_path = base_out_path
 
     def save_new_status(self, ip1port, ip2port, new_status):
         c = self.get_connection(ip1port, ip2port)
         for status in new_status:
             c.increment(status)
 
-    def export_to_file(self, ip1port, ip2port, base_path):
+    def export_to_file(self, ip1port, ip2port):
         c = self.get_connection(ip1port, ip2port)
         g = c.matrix_to_graphiz()
-        filename = base_path + '/' + str(c)
-        g.render(filename)
+        filename = self.base_out_path / str(c)
+        g.render(str(filename))
 
     def get_connection(self, ip1port, ip2port):
         if ip1port[1] == 443:
@@ -44,6 +56,10 @@ class PredictSSLDatabase:
         if not ip2port + ip1port in self.db:
             self.db[ip2port + ip1port] = TLSConnection(ip2port, ip1port)
         return self.db[ip2port + ip1port]
+
+    def __iter__(self):
+        for k, v in self.db:
+            yield k, v
 
 
 class TLSConnection:

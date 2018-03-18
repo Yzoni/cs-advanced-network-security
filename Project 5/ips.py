@@ -16,6 +16,7 @@ from util import parse_ip, parse_tcp
 from pathlib2 import Path
 from scapy.all import *
 import pcap
+import os
 
 from modules.arp.arp_module import ARPModule, ACL
 from modules.ieee80211.ieee80211_module import IEEE80211Module
@@ -40,6 +41,7 @@ LINKTYPE_ETHERNET = 1
 LINKTYPE_IEEE802_11_RADIOTAP = 127
 
 log = get_logger()
+dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 def ether_loop(sniffer):
@@ -48,23 +50,31 @@ def ether_loop(sniffer):
     else:
         arp_module = ARPModule()
 
-    ssl_module = PredictSSLModule()
+    if not args.pred_ssl_out:
+        pred_ssl_out = dir_path / 'out_pred_ssl'
+    else:
+        pred_ssl_out = Path(args.pred_ssl_out)
 
+    ssl_module = PredictSSLModule(pred_ssl_out)
+
+    count = 0
     for ts, pkt in sniffer:
+        count += 1
         e = Ether(pkt)
-        # try:
-        if e.type == ETHER_TYPE_ARP:
-            log.info('Received ARP packet')
-            arp_module.receive_packet(e, ts)
-        if e.type == ETHER_TYPE_IPV4:
-            if e.haslayer(TCP):
-                if (e[TCP].sport == SSL_PORT) or (e[TCP].dport == SSL_PORT):
-                    ssl_module.receive_packet(e, ts)
-        else:
-            log.info('Received packet not supported by IPS')
-        # except AttributeError as e:
-        #     log.info('Received packet does not have a type {}'.format(e))
-        #     continue
+        try:
+            if e.type == ETHER_TYPE_ARP:
+                log.info('Received ARP packet')
+                arp_module.receive_packet(e, ts)
+            if e.type == ETHER_TYPE_IPV4:
+                if e.haslayer(TCP):
+                    if (e[TCP].sport == SSL_PORT) or (e[TCP].dport == SSL_PORT):
+                        print(count)
+                        ssl_module.receive_packet(e, ts)
+            else:
+                log.info('Received packet not supported by IPS')
+        except AttributeError as e:
+            log.info('Received packet does not have a type {}'.format(e))
+            continue
 
 
 def radiotap_loop(sniffer):
@@ -74,11 +84,11 @@ def radiotap_loop(sniffer):
     for ts, pkt in sniffer:
         try:
             pkt_c += 1
-            l().debug('Received IEEE80211 packet ({:d})'.format(pkt_c))
+            log.debug('Received IEEE80211 packet ({:d})'.format(pkt_c))
             ieee80211_module.receive_packet(pkt, pkt_c)
         except Exception as e:
             print(e)
-            l().error('Could not parse IEEE80211 packet ({:d})'.format(pkt_c))
+            log.error('Could not parse IEEE80211 packet ({:d})'.format(pkt_c))
 
 
 if __name__ == '__main__':
@@ -90,6 +100,8 @@ if __name__ == '__main__':
                         help='output file for a json log')
     parser.add_argument('--arp-acl-config', dest='arp_config', type=str,
                         help='configuration file with IP to MAC bindings')
+    parser.add_argument('--predict-ssl-fingerpint-out', dest='pred_ssl_out', type=str,
+                        help='Out directory to store fingerprint plots')
     args = parser.parse_args()
 
     if args.pcap_in and args.log_out:
