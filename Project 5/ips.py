@@ -68,7 +68,7 @@ def ether_loop(sniffer):
             if e.type == ETHER_TYPE_IPV4:
                 if e.haslayer(TCP):
                     if (e[TCP].sport == SSL_PORT) or (e[TCP].dport == SSL_PORT):
-                        ssl_module.receive_packet(e, ts)
+                        ssl_module.receive_packet(str(e), ts)
             else:
                 log.info('Received packet not supported by IPS')
         except AttributeError as e:
