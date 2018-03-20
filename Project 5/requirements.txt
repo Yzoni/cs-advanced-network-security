@@ -4,3 +4,4 @@ pathlib2
 json-log-formatter
 graphviz
 numpy
+selenium
