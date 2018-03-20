@@ -47,6 +47,9 @@ class PredictSSLDatabase:
         filename = self.base_out_path / (str(c.ip2_ext[0]) + ' - ' + str(c.ip1_ssl[0]))
         g.render(str(filename))
 
+        with open(str(self.base_out_path / (str(c.ip2_ext[0]) + ' - ' + str(c.ip1_ssl[0]) + '.csv')), mode='w') as f:
+            f.write(c.matrix_to_csv_string())
+
     def get_connection(self, ip1port, ip2port, aggregate=False):
         """
         Get connection from database, if it does not exist create it
@@ -109,6 +112,10 @@ class TLSConnection:
                 if n_matrix[x][y] > 0:
                     g.edge(INV_SSL_LOG_STATES[x], INV_SSL_LOG_STATES[y], label='{:f}'.format(perc[y]))
         return g
+
+    def matrix_to_csv_string(self):
+        n_matrix = self._normalize()
+        return ','.join(map(str, n_matrix.flatten()))
 
     def __add__(self, other):
         self.matrix += other.matrix

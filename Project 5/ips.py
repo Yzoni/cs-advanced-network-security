@@ -8,7 +8,7 @@ Modular Intrusion Prevention System (IPS)
 
 import argparse
 
-from scapy.layers.inet import TCP
+from scapy.layers.inet import TCP, CookedLinux
 
 from ips_logger import get_logger, init_logger
 from util import parse_ip, parse_tcp
@@ -21,6 +21,7 @@ import os
 from modules.arp.arp_module import ARPModule, ACL
 from modules.ieee80211.ieee80211_module import IEEE80211Module
 from modules.predict_ssl.predict_ssl_module import PredictSSLModule
+from modules.predict_pop.predict_pop_module import PredictPopModule
 
 ETHER_TYPE_IPV4 = 0x0800
 ETHER_TYPE_IPV6 = 0x86DD
@@ -32,6 +33,7 @@ SIZE_HEADER_UDP = 8
 SIZE_DNS_HEADER = 12
 
 SSL_PORT = 443
+POP_PORT = 110
 
 PROTOCOL_UDP = 17
 PROTOCOL_TCP = 6
@@ -39,6 +41,7 @@ PROTOCOL_TCP = 6
 # DLT_ linktype http://www.tcpdump.org/linktypes.html
 LINKTYPE_ETHERNET = 1
 LINKTYPE_IEEE802_11_RADIOTAP = 127
+LINKTYPE_DLT_LINUX_SLL = 113
 
 log = get_logger()
 dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -57,6 +60,13 @@ def ether_loop(sniffer):
 
     ssl_module = PredictSSLModule(pred_ssl_out)
 
+    if not args.pred_pop_out:
+        pred_pop_out = dir_path / 'out_pred_pop.txt'
+    else:
+        pred_pop_out = Path(args.pred_pop_out)
+
+    pop_module = PredictPopModule(pred_pop_out)
+
     count = 0
     for ts, pkt in sniffer:
         count += 1
@@ -69,12 +79,38 @@ def ether_loop(sniffer):
                 if e.haslayer(TCP):
                     if (e[TCP].sport == SSL_PORT) or (e[TCP].dport == SSL_PORT):
                         ssl_module.receive_packet(str(e), ts)
+                    if (e[TCP].sport == POP_PORT) or (e[TCP].dport == POP_PORT):
+                        pop_module.receive_packet(str(e), ts)
             else:
                 log.info('Received packet not supported by IPS')
         except AttributeError as e:
             log.info('Received packet does not have a type {}'.format(e))
             continue
 
+def cooked_loop(sniffer):
+    if not args.pred_pop_out:
+        pred_pop_out = dir_path / 'out_pred_pop.txt'
+    else:
+        pred_pop_out = Path(args.pred_pop_out)
+
+    pop_module = PredictPopModule(pred_pop_out)
+
+    count = 0
+    for ts, pkt in sniffer:
+        count += 1
+
+        e = CookedLinux(pkt)
+
+        try:
+            if e.haslayer(TCP):
+                if ((e[TCP].sport == POP_PORT) or (e[TCP].dport == POP_PORT)) \
+                        and e[TCP].flags != 0x10 and e[TCP].flags != 0x02:
+                    pop_module.receive_packet(str(e), ts)
+            else:
+                log.info('Received packet not supported by IPS')
+        except AttributeError as e:
+            log.info('Received packet does not have a type {}'.format(e))
+            continue
 
 def radiotap_loop(sniffer):
     ieee80211_module = IEEE80211Module()
@@ -101,6 +137,8 @@ if __name__ == '__main__':
                         help='configuration file with IP to MAC bindings')
     parser.add_argument('--predict-ssl-fingerpint-out', dest='pred_ssl_out', type=str,
                         help='Out directory to store fingerprint plots')
+    parser.add_argument('--predict-pop-out', dest='pred_pop_out', type=str,
+                        help='Output directory for pop commands')
     args = parser.parse_args()
 
     if args.pcap_in and args.log_out:
@@ -113,6 +151,8 @@ if __name__ == '__main__':
 
         if LINKTYPE_ETHERNET == datalink:
             ether_loop(sniffer)
+        elif LINKTYPE_DLT_LINUX_SLL == datalink:
+            cooked_loop(sniffer)
         elif LINKTYPE_IEEE802_11_RADIOTAP == datalink:
             radiotap_loop(sniffer)
         else:

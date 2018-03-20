@@ -1,11 +1,25 @@
 from ips_module import IPSModule
-from sklearn.cluster import DBSCAN
+
+from modules.predict_pop.pop_packet import POPPacket
+from ips_logger import get_logger
+
+log = get_logger()
 
 
 class PredictPopModule(IPSModule):
+    def __init__(self, pop_out_file):
+        self.pop_out_file = pop_out_file
 
     def receive_packet(self, pkt, pkt_c):
-        pass
+        with open(str(self.pop_out_file), mode='w') as f:
+            pop = POPPacket.from_pkt(pkt)
+
+            try:
+                log.info('POP package with command {}'.format(pop.command.decode('utf_8').rstrip()))
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                log.info('Could not decode pop')
+
+            f.write('{}\n'.format(pop.command))
 
 
 class PredictCurrentStatePop:
@@ -25,7 +39,8 @@ class PredictCurrentStatePop:
         Use DBSCAN unsupervised clustering algorithm to cluster transmissions
         together based on string similarity.
         """
-        return DBSCAN().fit_predict(transmission)
+        # return DBSCAN().fit_predict(transmission)
+        pass
 
     def _predict_xor(self, cluster):
         """

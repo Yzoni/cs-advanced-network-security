@@ -53,7 +53,7 @@ if __name__ == '__main__':
     driver = webdriver.Firefox()
     for app in apps:
         for trace in range(args.ntraces):
-
+            print('Starting trace {}'.format(trace))
             p_capture = pexpect.spawn('tcpdump',
                                       ['tcp', 'port', str(443), '-i', str(args.interface), '-w',
                                        str('{}-{}.pcap').format(app, trace)])
