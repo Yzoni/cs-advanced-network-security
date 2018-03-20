@@ -26,7 +26,7 @@ class PredictSSLModule(IPSModule):
         parsed_pkt = SSLPacket.from_pkt(pkt)
 
         db_states = [self._determine_state(record) for record in parsed_pkt.records]
-        db_states = filter(lambda x: x is None, db_states)
+        db_states = filter(lambda x: x is not None, db_states)
 
         ip_header, ip_protocol = parse_ip(pkt)
         tcp_header, tcp_header_size = parse_tcp(pkt)

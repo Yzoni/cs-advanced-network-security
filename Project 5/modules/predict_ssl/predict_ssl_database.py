@@ -42,20 +42,39 @@ class PredictSSLDatabase:
             c.increment(status)
 
     def export_to_file(self, ip1port, ip2port):
-        c = self.get_connection(ip1port, ip2port)
+        c = self.get_connection(ip1port, ip2port, aggregate=True)
         g = c.matrix_to_graphiz()
-        filename = self.base_out_path / str(c)
+        filename = self.base_out_path / (str(c.ip2_ext[0]) + ' - ' + str(c.ip1_ssl[0]))
         g.render(str(filename))
 
-    def get_connection(self, ip1port, ip2port):
+    def get_connection(self, ip1port, ip2port, aggregate=False):
+        """
+        Get connection from database, if it does not exist create it
+        """
         if ip1port[1] == 443:
-            if not ip1port + ip2port in self.db:
-                self.db[ip1port + ip2port] = TLSConnection(ip1port, ip2port)
-            return self.db[ip1port + ip2port]
+            temp = ip1port
+            ip1port = ip2port
+            ip2port = temp
 
-        if not ip2port + ip1port in self.db:
-            self.db[ip2port + ip1port] = TLSConnection(ip2port, ip1port)
-        return self.db[ip2port + ip1port]
+        if not ip1port[0] + ip2port[0] in self.db:
+            self.db[ip1port[0] + ip2port[0]] = {
+                ip1port[1]: TLSConnection(ip1port, ip2port)
+            }
+        if ip1port[1] not in self.db[ip1port[0] + ip2port[0]]:
+            self.db[ip1port[0] + ip2port[0]].update({
+                ip1port[1]: TLSConnection(ip1port, ip2port)
+            })
+
+        if not aggregate:
+            return self.db[ip1port[0] + ip2port[0]][ip1port[1]]
+
+        connections = None
+        for port, c in self.db[ip1port[0] + ip2port[0]].iteritems():
+            if not connections:
+                connections = c
+            else:
+                connections += c
+        return connections
 
     def __iter__(self):
         for k, v in self.db:
@@ -77,7 +96,7 @@ class TLSConnection:
         self.previous_status = new
 
     def _normalize(self):
-        summed = self.matrix.sum(axis=1)
+        summed = self.matrix.sum(axis=0)
         return np.divide(self.matrix, summed, out=np.zeros_like(self.matrix), where=summed != 0)
 
     def matrix_to_graphiz(self):
@@ -90,6 +109,10 @@ class TLSConnection:
                 if n_matrix[x][y] > 0:
                     g.edge(INV_SSL_LOG_STATES[x], INV_SSL_LOG_STATES[y], label='{:f}'.format(perc[y]))
         return g
+
+    def __add__(self, other):
+        self.matrix += other.matrix
+        return self
 
 
 def test_save_new_status():
