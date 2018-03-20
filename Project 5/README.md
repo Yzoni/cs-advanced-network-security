@@ -63,7 +63,7 @@ sudo python modules/predict_ssl/predict_ssl_train.py eno1 --traces-per-app 30 --
 
 The 5 fold crossvalidation can be found at `modules/predict_ssl/predict_ssl_test.py`. An accuracy of 100 percent was
 achieved. This high percentage can be explained from the relative few amount of applications and there is hardly
-any difference between executions when collecting data.
+any difference between executions when collecting data. The data used is in the `modules/predict_ssl/samples` folder.
 
 
 ####Task 4:
