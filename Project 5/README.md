@@ -15,54 +15,51 @@ or to install dependencies before running:
 run.sh in_pcap out_log
 ```
 
-The log is saved in JSON format
-
-#### Tests:
-Tests can be run per module with PyTest, for instance:
-```bash
-pytest modules/ieee80211
-```
+The log is saved as txt.
 
 
 Questions from assignment:
 
 ####Task 1:
-The newly added ieee80211 module is able to parse IEEE802.11 packets. A malicious actor would send large amounts 
-of deauthenticaiton or disassociation frames in order to achieve constant denial of service. The quantity of these 
-frames is what could trigger suspicion. A possible alert configuration should thus keep track of the amount of 
-deauthentication/disassociation frames that are exchanged between a host and AP. If this exceeds a certain threshold
-an alert should be triggered by the IPS.
+For each source/destination a separate counter matrix is used. The timer for the visualizations
+is zero. This is for demonstration purposes, it just recreates the visualizations after each update
+to the matrix.
+
+The visualizations can be found in the `out_pred_ssl` folder, here they are aggregated on ip, because tcp
+session uses a different port.
 
 ####Task 2:
-Detection of ARP-request replay attack on WEP encrypted network.
+Fingerprints for 5 different applications were created and can be found in the `modules/predict_ssl/samples` folder.
 
-The implemented alert configuration monitors for multiple duplicate frames with duplicate IVs (not rebroadcasts, 
-but actual duplicates). It stores all IVs originating from clients and counts them. If the number of duplicate IVs 
-exceed a threshold, an Error response is emitted and the counter is reset. Although not implemented a possible 
-optimization would be to also scan for bursts of deauthentication/disassociation frames.
+The code used to create the fingerprints is in `modules/predict_ssl/predict_ssl_train.py`. Each fingerprint consists of
+multiple calls to the application but with cache, so subsequent calls might use the cache for the `certificate`, in
+order to shortcut the handshake. Each application is recorded for 15 seconds.
 
+The following applications were used:
+```python
+apps = [
+    'tweakers.net',
+    'en.wikipedia.org',
+    'about.gitlab.com',
+    'docs.python.org',
+    'edition.cnn.com',
+]
+```
+
+When we the visualizations we see that the `tweakers.net` always goes trough the whole handshake and does not shortcut by
+using the cache. The opposite we see for `en.wikipedia.org` which uses for almost 40 percent of the time. `CNN` sends
+multiple alerts after each other. The rest of applications all close with a single alert. The ``docs.python.org`` seems
+a bit weird, for unknown reason it does not go trough the handshake at all and directly goes to the application data.
+It is also the only application that has a certificate status message. Its interesting wikipedia does not have a new
+session message, a possible explanation could be that the session was not long enough.
 
 ####Task 3:
-In the Netherlands, the wetboek van strafrecht has the following relevant law about, interfering with third 
-party networks:
+The same script as for Task 2 can be used to generate training data, just with different parameters.
 
-Artikel 138b
+Runnable by:
 
-1. Met gevangenisstraf van ten hoogste twee jaren of geldboete van de vierde categorie wordt gestraft hij 
-   die opzettelijk en wederrechtelijk de toegang tot of het gebruik van een geautomatiseerd werk belemmert 
-   door daaraan gegevens aan te bieden of toe te zenden.
+```bash
+sudo python modules/predict_ssl/predict_ssl_train.py eno1 --traces-per-app 30 --time-per-trace 15
+```
 
-There is no exception for defensive blocking on defensive grounds.
-
-####Task 4:
-For authentication and deauthentication frames the receiver cannot be certain that the frame was sent by 
-the base station.
-
-If a client is in the same network and thus knows the pairwise master key in wpa(2)-personal he should be able
-to spoof another client in the network. For broadcast messages he does not need anything anything more than
-the GTK. This key gives every legitimate client the ability to decrypt all broadcast traffic.
- 
-To spoof unicast messages the spoofer will need to have captured the ANonce and the SNonce during the 4-way
-handshake of the client have wants to spoof, with this he would be able to derive the PTK.
-
-####Task 5
+The 5 fold cross validation can be done 

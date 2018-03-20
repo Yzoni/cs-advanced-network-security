@@ -3,21 +3,20 @@ Global IPS logger
 """
 
 import logging
-import json_log_formatter
 import sys
 
 
 def init_logger(file_location='log.json'):
-    formatter = json_log_formatter.JSONFormatter()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    json_handler = logging.FileHandler(filename=file_location)
-    json_handler.setFormatter(formatter)
+    file_handler = logging.FileHandler(filename=file_location)
+    file_handler.setFormatter(formatter)
 
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(message)s'))
 
     log = logging.getLogger('IPS')
-    log.addHandler(json_handler)
+    log.addHandler(file_handler)
     log.addHandler(stdout_handler)
 
     log.setLevel(logging.INFO)

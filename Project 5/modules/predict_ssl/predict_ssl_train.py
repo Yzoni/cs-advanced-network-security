@@ -12,11 +12,11 @@ from selenium.common.exceptions import WebDriverException
 dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 apps = [
+    'tweakers.net',
+    'en.wikipedia.org',
     'about.gitlab.com',
     'docs.python.org',
     'edition.cnn.com',
-    'news.ycombinator.com',
-    'www.tudelft.nl'
 ]
 
 
@@ -69,13 +69,15 @@ if __name__ == '__main__':
             while True:
                 links = driver.find_elements_by_tag_name('a')
                 links = list(filter(
-                    lambda x: str(x.get_attribute('href')).startswith(app_url) and str(
-                        x.get_attribute('href')) not in visited, links))
+                    lambda x: (str(x.get_attribute('href')).startswith(app_url) or
+                               str(x.get_attribute('href')).startswith('/')) and
+                              str(x.get_attribute('href')) not in visited and
+                              '#' not in str(x.get_attribute('href')), links)
+                )
 
                 if len(links) < 1:
-                    print('Zero links, going back')
-                    driver.back()
-                    continue
+                    print('Zero links')
+                    break
 
                 visited += click_link(driver, links, visited)
 

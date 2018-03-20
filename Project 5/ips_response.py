@@ -39,5 +39,4 @@ class ErrorResponse(IPSResponse):
 
 class NoticeResponse(IPSResponse):
     def _save(self):
-        print('called')
         log.info('{} | NOTICE | Response: {} | [{}]'.format(self.module, self.message, self.pkt_summary['pkt']))
