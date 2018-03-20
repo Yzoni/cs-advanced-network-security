@@ -1,7 +1,5 @@
 ## Python modular Intrusion Prevention System (IPS)
 
-Added IEEE802.11 Parsing
-
 #### Usage:
 
 Directly:
