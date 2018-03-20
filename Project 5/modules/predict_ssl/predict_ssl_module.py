@@ -50,7 +50,8 @@ class PredictSSLModule(IPSModule):
                     agg += v
                 f.write('{},{}\n'.format(app_name, agg))
 
-    def predict_app(self, model_file_name, to_predict_matrix):
+    @staticmethod
+    def predict_app(model_file_name, to_predict_matrix):
         cost = np.inf
         app_name = 'Not found'
 

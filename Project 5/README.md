@@ -48,9 +48,8 @@ apps = [
 
 When we the visualizations we see that the `tweakers.net` always goes trough the whole handshake and does not shortcut by
 using the cache. The opposite we see for `en.wikipedia.org` which uses for almost 40 percent of the time. `CNN` sends
-multiple alerts after each other. The rest of applications all close with a single alert. The ``docs.python.org`` seems
-a bit weird, for unknown reason it does not go trough the handshake at all and directly goes to the application data.
-It is also the only application that has a certificate status message. Its interesting wikipedia does not have a new
+multiple alerts after each other. The rest of applications all close with a single alert. It is also the only application 
+that has a certificate status message. Its interesting wikipedia does not have a new
 session message, a possible explanation could be that the session was not long enough.
 
 ####Task 3:
@@ -62,8 +61,11 @@ Runnable by:
 sudo python modules/predict_ssl/predict_ssl_train.py eno1 --traces-per-app 30 --time-per-trace 15
 ```
 
-I did not have enough time to collect all the training data, the code to do the analysis is 
-in `module/predict_ssl/predict_ssl_module.py`
+The 5 fold crossvalidation can be found at `modules/predict_ssl/predict_ssl_test.py`. An accuracy of 100 percent was
+achieved. This high percentage can be explained from the relative few amount of applications and there is hardly
+any difference between executions when collecting data.
 
 
 ####Task 4:
+There is something in the `modules/predict_pop/` directory. It parses the supplied pop pcap file. But does not yet
+do any analysis.
