@@ -1,22 +1,25 @@
 import subprocess
 from multiprocessing import Process
 import argparse
+from pathlib2 import Path
+import os
+
+
+import pexpect
+
+dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 apps = [
-    'amazon.com'
     'www.nrc.nl',
+    'docs.python.org',
     'stackoverflow.com',
     'news.ycombinator.com',
     'www.tudelft.nl'
 ]
 
 
-def start_surfing():
-    subprocess.call('randomSurfer.sh app', shell=True)
-
-
-def start_capture(interface, app):
-    subprocess.call('tcpdump tcp -i {} -s -w {}.pcap'.format(args.interface, args.app))
+def start_surfing(app):
+    subprocess.call(str(dir_path / 'randomSurfer.sh ') + app, shell=True)
 
 
 if __name__ == '__main__':
@@ -26,5 +29,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     for app in apps:
-        p = Process(target=start_surfing)
-        p.start()
+
+        p_capture = pexpect.spawn('tcpdump', ['tcp', 'port', str(443), '-i', str(args.interface), '-w', str(app + '.pcap')])
+
+        subprocess.call(str(dir_path / 'randomSurfer.sh ') + app, shell=True)
+
+        p_capture.sendcontrol('c')
+        p_capture.close()
