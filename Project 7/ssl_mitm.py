@@ -2,7 +2,8 @@ import socket, ssl
 import re
 import subprocess
 import argparse
-
+import select
+import time
 
 from ssl_packet import SSLPacket, SSLHandshakeClientHelloRecord, SSLExtensionServerName
 
@@ -15,13 +16,34 @@ def init_ssl_ca():
 
 
 def generate_ssl(host):
-    subprocess.call(['openssl', 'genrsa', '-out', '{}.key'.format(host), '2048', '-subj',
-                     '"/C=NL/ST=Zuid Holland/L=Rotterdam/O=Sparkling Network/OU=IT Department/CN={}"'.format(host)])
-    subprocess.call(['openssl', 'req', '-new', '-key', '{}.key'.format(host), '-out', '{}.csr'.format(host)])
-    subprocess.call(['openssl', 'x509', '-req', '-in', '{}.csr'.format(host), '-CA', 'myCA.pem', '-CAkey', 'myCA.key',
-                     '-CAcreateserial', '-out {}.crt'.format(host), '-days', '1825', '-sha256'])
+    subprocess.call(['rm', './demoCA/index.txt'])
+    subprocess.call(['touch', './demoCA/index.txt'])
+    subprocess.call(['mkdir', '-p', './certs'])
 
-    return '.crt'.format(host), '{}.key'.format(host)
+    subprocess.call(['openssl', 'genrsa', '-out', './certs/{}.key'.format(host), '2048'], stderr=subprocess.DEVNULL)
+    subprocess.call(['openssl', 'req', '-new', '-key', './certs/{}.key'.format(host), '-out',
+                     './certs/{}.csr'.format(host), '-subj',
+                     '/C=NL/ST=ZuidHolland/L=Rotterdam/O=SecOps/OU=ITDep/CN={}'.format(host)],
+                    stderr=subprocess.DEVNULL)
+    subprocess.call(['openssl', 'ca', '-batch', '-out', './certs/{}.crt'.format(host), '-startdate', '20160107071311Z',
+                     '-enddate', '20190107071311Z', '-cert', 'myCA.pem', '-keyfile', 'myCA.key', '-infiles',
+                     './certs/{}.csr'.format(host)], stderr=subprocess.DEVNULL)
+
+    return './certs/{}.crt'.format(host), './certs/{}.key'.format(host)
+
+
+def get_host(pkt):
+    try:
+        record = list(filter(lambda e: isinstance(e, SSLHandshakeClientHelloRecord), pkt.records))[0]
+    except IndexError:
+        return None
+
+    for ext in record.extensions:
+        if isinstance(ext.data, SSLExtensionServerName):
+            host = ext.data.name
+            print('Found host in client hello: {}'.format(host))
+            return host
+    return None
 
 
 if __name__ == '__main__':
@@ -41,51 +63,79 @@ if __name__ == '__main__':
         sock_ips_client = socket.socket()
         sock_ips_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock_ips_client.bind(('0.0.0.0', listening_port))
-        sock_ips_client.listen(5)
+        sock_ips_client.listen(3)
 
         while True:
             try:
-                connection, client_address = sock_ips_client.accept()
+                print('-' * 20)
+                conn_ips_client, client_address = sock_ips_client.accept()
 
-                print(sock_ips_client.getsockname())
-
-                init_pkt = connection.recv(4096, socket.MSG_PEEK)
+                init_pkt = conn_ips_client.recv(4096, socket.MSG_PEEK)
                 init_pkt = SSLPacket.from_pkt(init_pkt)
 
-                host = None
-                if isinstance(init_pkt, SSLHandshakeClientHelloRecord):
-                    for ext in init_pkt.extensions:
-                        if isinstance(ext.data, SSLExtensionServerName):
-                            host = ext.data.name
-
+                host = get_host(init_pkt)
                 if not host:
                     continue
 
                 crt, key = generate_ssl(host)
 
-                connstream = ssl.wrap_socket(connection, server_side=True, certfile="yrck.nl.crt", keyfile="yrck.nl.key")
-                connstream.do_handshake()
+                try:
+                    conn_ssl_ips_client = ssl.wrap_socket(conn_ips_client, server_side=True, certfile=crt, keyfile=key)
+                    conn_ssl_ips_client.setblocking(1)
+                except (ssl.SSLError, OSError) as e:
+                    print('Could not wrap client - ips socket: {}'.format(e))
+                    continue
+
+                try:
+                    conn_ssl_ips_client.do_handshake()
+                    conn_ssl_ips_client.setblocking(0)
+                except (ssl.SSLError, OSError) as e:
+                    print('Could not do SSL handshake: {}'.format(e))
+                    break
+
+                sock_ips_world = socket.socket()
+                sock_ips_world = ssl.wrap_socket(sock_ips_world)
+
+                try:
+                    sock_ips_world.connect((host, 443))
+                    sock_ips_world.setblocking(1)
+                    sock_ips_world.settimeout(3)
+                except ssl.SSLWantReadError as e:
+                    print('Could not connect remote server: {}'.format(e))
+                    break
+
                 while True:
-                    data_client = connstream.recv(4096).decode()
-                    print(data_client)
+                    try:
+                        data_client = conn_ssl_ips_client.recv(4096)
+                    except ssl.SSLError as e:
+                        print('Could not read from client: {}'.format(e))
+                        break
 
                     if not data_client:
                         break
 
-                    host = re.search(r"Host: (.+)\r\n", data_client).group(1)
-                    print(host)
+                    sock_ips_world.sendall(data_client)
 
-                    sock_ips_world = socket.socket()
-                    sock_ips_world = ssl.wrap_socket(sock_ips_world)
-                    sock_ips_world.connect((host, 443))
-                    sock_ips_world.sendall(data_client.encode())
-                    data_world = sock_ips_world.recv(4096)
-                    sock_ips_world.close()
+                    while True:
+                        try:
+                            data_world = sock_ips_world.recv(4096)
+                        except (ssl.SSLWantReadError, socket.timeout) as e:
+                            print('Could not read from www: {}'.format(e))
+                            break
 
-                    connstream.sendall(data_world)
-                    connstream.close()
-                    break
+                        try:
+                            conn_ssl_ips_client.sendall(data_world)
+                        except ssl.SSLWantWriteError as e:
+                            print('Error sending to client: {}'.format(e))
+
+                        if not data_world:
+                            break
+
+                print('Closing')
+                sock_ips_world.close()
+                conn_ssl_ips_client.close()
 
             except KeyboardInterrupt:
+                sock_ips_client.close()
                 print("\nTerminating...")
                 break

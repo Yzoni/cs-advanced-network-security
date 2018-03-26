@@ -205,7 +205,6 @@ class SSLExtension:
         :return: SSLExtension
         """
         try:
-            print('TYPE: {}'.format(struct.unpack('>H', bytes(p_pkt[:2]))[0]))
             type = Extensions(struct.unpack('>H', bytes(p_pkt[:2]))[0])
         except ValueError as e:
             type = Extensions.OTHER
@@ -278,5 +277,7 @@ def test_client_hello_parse():
           b"\x06\x01\x02\x03\x02\x01\x00\x2d\x00\x02\x01\x01"
 
     parsed_pkt = SSLPacket.from_pkt(pkt)
+
+    assert parsed_pkt == type(SSLHandshakeClientHelloRecord)
 
     print(parsed_pkt)
