@@ -1,11 +1,19 @@
-import socket, ssl
-import re
+import socket
+import ssl
 import subprocess
 import argparse
-import select
-import time
+import logging as logging
+import sys
 
 from ssl_packet import SSLPacket, SSLHandshakeClientHelloRecord, SSLExtensionServerName
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(message)s'))
+stdout_handler.setFormatter(formatter)
+log.addHandler(stdout_handler)
 
 
 def init_ssl_ca():
@@ -41,7 +49,7 @@ def get_host(pkt):
     for ext in record.extensions:
         if isinstance(ext.data, SSLExtensionServerName):
             host = ext.data.name
-            print('Found host in client hello: {}'.format(host))
+            log.info('Found host in client hello: {}'.format(host))
             return host
     return None
 
@@ -58,7 +66,7 @@ if __name__ == '__main__':
     else:
         listening_port = 8443
 
-        print('Started listening on {}'.format(listening_port))
+        log.info('Started listening on {}'.format(listening_port))
 
         sock_ips_client = socket.socket()
         sock_ips_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -67,14 +75,16 @@ if __name__ == '__main__':
 
         while True:
             try:
-                print('-' * 20)
+                log.info('-' * 20)
                 conn_ips_client, client_address = sock_ips_client.accept()
+                log.info('Accepting new client {}'.format(client_address))
 
                 init_pkt = conn_ips_client.recv(4096, socket.MSG_PEEK)
                 init_pkt = SSLPacket.from_pkt(init_pkt)
 
                 host = get_host(init_pkt)
                 if not host:
+                    log.info('Did not find host, continuing...')
                     continue
 
                 crt, key = generate_ssl(host)
@@ -83,14 +93,14 @@ if __name__ == '__main__':
                     conn_ssl_ips_client = ssl.wrap_socket(conn_ips_client, server_side=True, certfile=crt, keyfile=key)
                     conn_ssl_ips_client.setblocking(1)
                 except (ssl.SSLError, OSError) as e:
-                    print('Could not wrap client - ips socket: {}'.format(e))
+                    log.debug('Could not wrap client - ips socket: {}'.format(e))
                     continue
 
                 try:
                     conn_ssl_ips_client.do_handshake()
                     conn_ssl_ips_client.setblocking(0)
                 except (ssl.SSLError, OSError) as e:
-                    print('Could not do SSL handshake: {}'.format(e))
+                    log.debug('Could not do SSL handshake: {}'.format(e))
                     break
 
                 sock_ips_world = socket.socket()
@@ -101,41 +111,46 @@ if __name__ == '__main__':
                     sock_ips_world.setblocking(1)
                     sock_ips_world.settimeout(3)
                 except ssl.SSLWantReadError as e:
-                    print('Could not connect remote server: {}'.format(e))
+                    log.debug('Could not connect remote server: {}'.format(e))
                     break
 
+                log.info('Started data interaction...')
                 while True:
                     try:
                         data_client = conn_ssl_ips_client.recv(4096)
+                        log.debug(' <- Received data from client')
                     except ssl.SSLError as e:
-                        print('Could not read from client: {}'.format(e))
+                        log.debug('Could not read from client: {}'.format(e))
                         break
 
                     if not data_client:
                         break
 
                     sock_ips_world.sendall(data_client)
+                    log.debug('     -> Sent data to world')
 
                     while True:
                         try:
                             data_world = sock_ips_world.recv(4096)
+                            log.debug('     <- Received data from world')
                         except (ssl.SSLWantReadError, socket.timeout) as e:
-                            print('Could not read from www: {}'.format(e))
+                            log.debug('Could not read from www: {}'.format(e))
                             break
 
                         try:
                             conn_ssl_ips_client.sendall(data_world)
+                            log.debug(' -> Sent data to client')
                         except ssl.SSLWantWriteError as e:
-                            print('Error sending to client: {}'.format(e))
+                            log.debug('Error sending to client: {}'.format(e))
 
                         if not data_world:
                             break
 
-                print('Closing')
+                log.info('Closing {}'.format(host))
                 sock_ips_world.close()
                 conn_ssl_ips_client.close()
 
             except KeyboardInterrupt:
                 sock_ips_client.close()
-                print("\nTerminating...")
-                break
+                log.info("Terminating")
+                exit(0)
