@@ -4,6 +4,7 @@ import subprocess
 import argparse
 import logging as logging
 import sys
+import threading
 
 from ssl_packet import SSLPacket, SSLHandshakeClientHelloRecord, SSLExtensionServerName
 
@@ -58,12 +59,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--init-ca', dest='init_ssl_ca', action='store_true',
                         help='Initialize a CA')
-
+    parser.add_argument('--whitelist', nargs='+')
     args = parser.parse_args()
 
     if args.init_ssl_ca:
         init_ssl_ca()
     else:
+        if args.whitelist:
+            whitelist = args.whitelist
+        else:
+            whitelist = []
+
         listening_port = 8443
 
         log.info('Started listening on {}'.format(listening_port))
@@ -87,24 +93,29 @@ if __name__ == '__main__':
                     log.info('Did not find host, continuing...')
                     continue
 
-                crt, key = generate_ssl(host)
-
-                try:
-                    conn_ssl_ips_client = ssl.wrap_socket(conn_ips_client, server_side=True, certfile=crt, keyfile=key)
-                    conn_ssl_ips_client.setblocking(1)
-                except (ssl.SSLError, OSError) as e:
-                    log.debug('Could not wrap client - ips socket: {}'.format(e))
-                    continue
-
-                try:
-                    conn_ssl_ips_client.do_handshake()
-                    conn_ssl_ips_client.setblocking(0)
-                except (ssl.SSLError, OSError) as e:
-                    log.debug('Could not do SSL handshake: {}'.format(e))
-                    break
-
                 sock_ips_world = socket.socket()
-                sock_ips_world = ssl.wrap_socket(sock_ips_world)
+
+                if host not in whitelist:
+                    log.info('Host not in whitelist')
+                    try:
+                        crt, key = generate_ssl(host)
+
+                        sock_ips_world = ssl.wrap_socket(sock_ips_world)
+
+                        conn_ips_client = ssl.wrap_socket(conn_ips_client, server_side=True, certfile=crt, keyfile=key)
+                        conn_ips_client.setblocking(1)
+                    except (ssl.SSLError, OSError) as e:
+                        log.debug('Could not wrap client - ips socket: {}'.format(e))
+                        continue
+
+                    try:
+                        conn_ips_client.do_handshake()
+                        conn_ips_client.setblocking(0)
+                    except (ssl.SSLError, OSError) as e:
+                        log.debug('Could not do SSL handshake: {}'.format(e))
+                        continue
+                else:
+                    log.info('Host is in whitelist')
 
                 try:
                     sock_ips_world.connect((host, 443))
@@ -117,7 +128,7 @@ if __name__ == '__main__':
                 log.info('Started data interaction...')
                 while True:
                     try:
-                        data_client = conn_ssl_ips_client.recv(4096)
+                        data_client = conn_ips_client.recv(4096)
                         log.debug(' <- Received data from client')
                     except ssl.SSLError as e:
                         log.debug('Could not read from client: {}'.format(e))
@@ -126,8 +137,11 @@ if __name__ == '__main__':
                     if not data_client:
                         break
 
-                    sock_ips_world.sendall(data_client)
-                    log.debug('     -> Sent data to world')
+                    try:
+                        sock_ips_world.sendall(data_client)
+                        log.debug('     -> Sent data to world')
+                    except BrokenPipeError as e:
+                        log.error('Could not send data to world {}'.format(e))
 
                     while True:
                         try:
@@ -138,7 +152,7 @@ if __name__ == '__main__':
                             break
 
                         try:
-                            conn_ssl_ips_client.sendall(data_world)
+                            conn_ips_client.sendall(data_world)
                             log.debug(' -> Sent data to client')
                         except ssl.SSLWantWriteError as e:
                             log.debug('Error sending to client: {}'.format(e))
@@ -148,7 +162,7 @@ if __name__ == '__main__':
 
                 log.info('Closing {}'.format(host))
                 sock_ips_world.close()
-                conn_ssl_ips_client.close()
+                conn_ips_client.close()
 
             except KeyboardInterrupt:
                 sock_ips_client.close()
