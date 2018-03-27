@@ -7,6 +7,7 @@ import sys
 import threading
 import multiprocessing
 import re
+import time
 
 from ssl_packet import SSLPacket, SSLHandshakeClientHelloRecord, SSLExtensionServerName
 
@@ -199,6 +200,7 @@ if __name__ == '__main__':
 
         while True:
             try:
+                time.sleep(1)
                 pass
             except KeyboardInterrupt:
                 https_process.terminate()
