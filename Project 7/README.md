@@ -22,6 +22,7 @@ sysctl --system
 
 iptables -t nat -F
 iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 8443
+iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 8080 
 ```
 
 #### Usage:
