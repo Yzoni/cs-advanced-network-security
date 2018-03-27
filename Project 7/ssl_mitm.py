@@ -13,10 +13,8 @@ from ssl_packet import SSLPacket, SSLHandshakeClientHelloRecord, SSLExtensionSer
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 stdout_handler = logging.StreamHandler(sys.stdout)
 stdout_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(message)s'))
-stdout_handler.setFormatter(formatter)
 log.addHandler(stdout_handler)
 
 
