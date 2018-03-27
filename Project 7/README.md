@@ -13,5 +13,17 @@ iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 8443
 
 #### Usage:
 ```bash
-python3 ssl_mitm.py
+usage: ssl_mitm.py [-h] [--init-ca] [--whitelist WHITELIST [WHITELIST ...]]
+
+Process some integers.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --init-ca             Initialize a CA
+  --whitelist WHITELIST [WHITELIST ...]
+```
+
+#### Example:
+```bash
+python3 ssl_mitm.py --whitelist www.aivd.nl yrck.nl
 ```
