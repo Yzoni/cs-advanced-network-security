@@ -71,7 +71,8 @@ def handle_client(conn_ips_client, client_address, ssl_enabled=True):
             init_pkt = SSLPacket.from_pkt(init_pkt)
             host = get_host(init_pkt)
         except Exception:
-            log.info('Could not init ssl packet')
+            log.info('Could not read init ssl packet')
+            return 1
     else:
         host = re.search(r"Host: (.+)\r\n", init_pkt.decode()).group(1)
 
