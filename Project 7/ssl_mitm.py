@@ -137,10 +137,11 @@ def handle_client(conn_ips_client, client_address):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='SSL MiTM')
     parser.add_argument('--init-ca', dest='init_ssl_ca', action='store_true',
                         help='Initialize a CA')
-    parser.add_argument('--whitelist', nargs='+')
+    parser.add_argument('--whitelist', nargs='+',
+                        help='Whitelist hosts that pass directly without interception')
     args = parser.parse_args()
 
     if args.init_ssl_ca:
