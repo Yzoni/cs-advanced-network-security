@@ -28,12 +28,14 @@ iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 8443
 ```bash
 usage: ssl_mitm.py [-h] [--init-ca] [--whitelist WHITELIST [WHITELIST ...]]
 
-Process some integers.
+SSL MiTM
 
 optional arguments:
   -h, --help            show this help message and exit
   --init-ca             Initialize a CA
   --whitelist WHITELIST [WHITELIST ...]
+                        Whitelist hosts that pass directly without
+                        interception
 ```
 
 #### Example:
