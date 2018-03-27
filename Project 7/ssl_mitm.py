@@ -91,7 +91,7 @@ def handle_client(conn_ips_client, client_address):
         sock_ips_world.connect((host, 443))
         sock_ips_world.setblocking(1)
         sock_ips_world.settimeout(3)
-    except ssl.SSLWantReadError as e:
+    except ssl.SSLError as e:
         log.debug('Could not connect remote server: {}'.format(e))
         return 1
 
@@ -124,7 +124,7 @@ def handle_client(conn_ips_client, client_address):
             try:
                 conn_ips_client.sendall(data_world)
                 log.debug(' -> Sent data to client')
-            except ssl.SSLWantWriteError as e:
+            except (ssl.SSLWantWriteError, BrokenPipeError) as e:
                 log.debug('Error sending to client: {}'.format(e))
 
             if not data_world:
