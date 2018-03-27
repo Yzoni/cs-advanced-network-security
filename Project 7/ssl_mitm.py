@@ -5,6 +5,8 @@ import argparse
 import logging as logging
 import sys
 import threading
+import multiprocessing
+import re
 
 from ssl_packet import SSLPacket, SSLHandshakeClientHelloRecord, SSLExtensionServerName
 
@@ -54,18 +56,33 @@ def get_host(pkt):
     return None
 
 
-def handle_client(conn_ips_client, client_address):
-    init_pkt = conn_ips_client.recv(4096, socket.MSG_PEEK)
-    init_pkt = SSLPacket.from_pkt(init_pkt)
+def setup_listening_sock(port):
+    sock_ips_client = socket.socket()
+    sock_ips_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock_ips_client.bind(('0.0.0.0', port))
+    sock_ips_client.listen(3)
+    return sock_ips_client
 
-    host = get_host(init_pkt)
+
+def handle_client(conn_ips_client, client_address, ssl_enabled=True):
+    init_pkt = conn_ips_client.recv(4096, socket.MSG_PEEK)
+
+    if ssl_enabled:
+        try:
+            init_pkt = SSLPacket.from_pkt(init_pkt)
+            host = get_host(init_pkt)
+        except Exception:
+            log.info('Could not init ssl packet')
+    else:
+        host = re.search(r"Host: (.+)\r\n", init_pkt.decode()).group(1)
+
     if not host:
         log.info('Did not find host, continuing...')
         return 1
 
     sock_ips_world = socket.socket()
 
-    if host not in whitelist:
+    if host not in whitelist and ssl_enabled:
         log.info('Host not in whitelist')
         try:
             crt, key = generate_ssl(host)
@@ -88,7 +105,11 @@ def handle_client(conn_ips_client, client_address):
         log.info('Host is in whitelist')
 
     try:
-        sock_ips_world.connect((host, 443))
+        if ssl_enabled:
+            sock_ips_world.connect((host, 443))
+        else:
+            sock_ips_world.connect((host, 80))
+
         sock_ips_world.setblocking(1)
         sock_ips_world.settimeout(3)
     except ssl.SSLError as e:
@@ -136,6 +157,15 @@ def handle_client(conn_ips_client, client_address):
     return 0
 
 
+def listen_for_clients(sock, ssl_enabled):
+    while True:
+        log.info('-' * 20)
+        conn_ips_client, client_address = sock.accept()
+        log.info('Accepting new client {}'.format(client_address))
+
+        threading.Thread(target=handle_client, args=(conn_ips_client, client_address, ssl_enabled)).start()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='SSL MiTM')
     parser.add_argument('--init-ca', dest='init_ssl_ca', action='store_true',
@@ -152,24 +182,26 @@ if __name__ == '__main__':
         else:
             whitelist = []
 
-        listening_port = 8443
+        http_listening_port = 8080
+        https_listening_port = 8443
 
-        log.info('Started listening on {}'.format(listening_port))
+        log.info('Started listening on for HTTPS connections {}'.format(https_listening_port))
+        https_sock_ips_client = setup_listening_sock(https_listening_port)
 
-        sock_ips_client = socket.socket()
-        sock_ips_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock_ips_client.bind(('0.0.0.0', listening_port))
-        sock_ips_client.listen(3)
+        log.info('Started listening on for HTTP connections {}'.format(http_listening_port))
+        http_sock_ips_client = setup_listening_sock(http_listening_port)
+
+        https_process = multiprocessing.Process(target=listen_for_clients, args=(https_sock_ips_client, True))
+        http_process = multiprocessing.Process(target=listen_for_clients, args=(http_sock_ips_client, False))
+
+        https_process.start()
+        http_process.start()
 
         while True:
             try:
-                log.info('-' * 20)
-                conn_ips_client, client_address = sock_ips_client.accept()
-                log.info('Accepting new client {}'.format(client_address))
-
-                threading.Thread(target=handle_client, args=(conn_ips_client, client_address)).start()
-
+                pass
             except KeyboardInterrupt:
-                sock_ips_client.close()
+                https_process.terminate()
+                http_process.terminate()
                 log.info("Terminating")
                 exit(0)
