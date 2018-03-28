@@ -1,5 +1,9 @@
 ## SSL MiTM
 
+Application that makes inspecting HTTPS traffic possible when placed between a host and the internet. This
+is done by creating two tunnels, one between the host and this application and one between the application
+and the internet. To demonstrate all traffic is readable, the request URL from the client is visible 
+in the log.
 
 #### Preparation:
 First the traffic of the victims host needs to be directed to the host running this application. The victim
@@ -43,3 +47,12 @@ optional arguments:
 ```bash
 python3 ssl_mitm.py --whitelist www.aivd.nl yrck.nl
 ```
+
+When above solution is for instance used in an organization to be able to deep packet inspection it 
+creates a couple of new risks.
+
+The first risk comes from the custom certificate necessary on the client. This brings great responsibility 
+to the organization to keep the CA key safe. If the key gets compromised it is possible for an attacket to 
+
+The second risk is that from possibly multiple hosts is now visible on a single point, the server that contains
+this application. 

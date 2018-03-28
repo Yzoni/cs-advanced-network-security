@@ -129,6 +129,11 @@ def handle_client(conn_ips_client, client_address, ssl_enabled=True):
             break
 
         try:
+            log.info('Request: {}'.format(data_client.decode().split('\n')[0]))
+        except Exception:
+            log.info('Could not decode client request, not printing')
+
+        try:
             sock_ips_world.sendall(data_client)
             log.debug('     -> Sent data to world')
         except BrokenPipeError as e:
