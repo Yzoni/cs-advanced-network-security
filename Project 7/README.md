@@ -48,6 +48,20 @@ optional arguments:
 python3 ssl_mitm.py --whitelist www.aivd.nl yrck.nl
 ```
 
+#### Legality of deploying a MiTM TLS decryption in a bossiness
+In The Netherlands law that corresponds the closest to the question whether an employer is allowed to inspect all
+internet traffic of an employee is the ground law of secrecy of correspondence. This rule however does not apply to
+mail that is also directed to the business, so the business is allowed to read this mail.  
+
+Multiple sources on the internet say that is allowed to do deep packet inspection on the business network, however
+the employee has to be informed in advance of this practice.
+
+European judges of the human rights court:
+https://tweakers.net/nieuws/129221/bedrijf-moet-werknemer-tijdig-vertellen-over-monitoren-communicatie.html
+
+Arnoud Engelfriet, Ict-jurist:
+https://www.security.nl/posting/416510/Juridische+vraag%3A+mag+een+bedrijf+SSL-verkeer+via+zelfgemaakt+certificaat+filteren%3F
+https://www.security.nl/posting/516591/Juridische+vraag%3A+Mag+mijn+werkgever+ssl-verkeer+decrypten+en+inspecteren+om+datalekken+te+voorkomen%3F
 
 #### Risk assessment when deploying such application in practice:
 When above solution is for instance used in an organization to be able to deep packet inspection it 
