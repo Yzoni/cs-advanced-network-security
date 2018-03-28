@@ -58,8 +58,16 @@ to the organization to keep the CA key safe. If the key gets compromised by some
 is able to create trusted certificates for domains they do not own. In combination with a MiTM attack,
 they are able exercise the same functionality as the `ssl_mitm` application demonstrated here, thus being able 
 to read all client data to and from a server in plaintext.
- 
+
 The second risk is that from possibly multiple hosts all data is now visible on a single point, the server that 
 contains the `ssl_mitm` application. If this server gets compromised all data in the network is visible to the 
 intruder.
+
+To mitigate the risk of the key being compromised the key should be placed on a different server which only purpose
+is to sign certificates, so only certificates are allowed to (arrive) and leave this system.
+
+In order to mitigate the risk of data compromise when the MiTM server gets compromised it should first of all be
+placed in a DMZ, no other data then should be allowed to flow from or to this MiTM server than SSL data, so no remote
+access. The only risk that this service then has is a bug in the MiTM software that could be exploited trough a 
+malicious SSL packet that is analyzed.
 
