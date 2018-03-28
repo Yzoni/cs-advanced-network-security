@@ -48,11 +48,18 @@ optional arguments:
 python3 ssl_mitm.py --whitelist www.aivd.nl yrck.nl
 ```
 
+
+#### Risk assessment when deploying such application in practice:
 When above solution is for instance used in an organization to be able to deep packet inspection it 
 creates a couple of new risks.
 
 The first risk comes from the custom certificate necessary on the client. This brings great responsibility 
-to the organization to keep the CA key safe. If the key gets compromised it is possible for an attacket to 
+to the organization to keep the CA key safe. If the key gets compromised by someone with bad intentions he
+is able to create trusted certificates for domains they do not own. In combination with a MiTM attack,
+they are able exercise the same functionality as the `ssl_mitm` application demonstrated here, thus being able 
+to read all client data to and from a server in plaintext.
+ 
+The second risk is that from possibly multiple hosts all data is now visible on a single point, the server that 
+contains the `ssl_mitm` application. If this server gets compromised all data in the network is visible to the 
+intruder.
 
-The second risk is that from possibly multiple hosts is now visible on a single point, the server that contains
-this application. 
