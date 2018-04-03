@@ -48,13 +48,15 @@ optional arguments:
 python3 ssl_mitm.py --whitelist www.aivd.nl yrck.nl
 ```
 
-#### Legality of deploying a MiTM TLS decryption in a bossiness
+#### Legality of deploying a MiTM TLS decryption in a bussiness
 In The Netherlands law that corresponds the closest to the question whether an employer is allowed to inspect all
 internet traffic of an employee is the ground law of secrecy of correspondence. This rule however does not apply to
 mail that is also directed to the business, so the business is allowed to read this mail.  
 
 Multiple sources on the internet say that is allowed to do deep packet inspection on the business network, however
-the employee has to be informed in advance of this practice.
+the employee has to be informed in advance of this practice. If the explicit consent, the packet inspection may
+be seen as an attack on the employees privacy. I could however not find an explicit case in which the matter was 
+handled in court.
 
 European judges of the human rights court:
 https://tweakers.net/nieuws/129221/bedrijf-moet-werknemer-tijdig-vertellen-over-monitoren-communicatie.html
@@ -63,9 +65,21 @@ Arnoud Engelfriet, Ict-jurist:
 https://www.security.nl/posting/416510/Juridische+vraag%3A+mag+een+bedrijf+SSL-verkeer+via+zelfgemaakt+certificaat+filteren%3F
 https://www.security.nl/posting/516591/Juridische+vraag%3A+Mag+mijn+werkgever+ssl-verkeer+decrypten+en+inspecteren+om+datalekken+te+voorkomen%3F
 
+The Autoriteit Persoonsgegevens also has some information available regarding the inspection of employees and 
+the influence on their privacy. This organization also says it is allowed to inspect employee internet traffic. However 
+the employer needs a legitimate reason that is more important than the privacy of the employee. There also need 
+to be no other alternatives that could achieve the same result. The employer also has to follow the law on the 
+protection of personal data. The above application can be used, however again the employee needs be informed.
+
+When an employer wants to inspect the employees internet traffic without him/her knowing he needs to have a 
+reasonable suspicion of illegal activity and needs to inform the Autoriteit Persoonsgegevens. However packet 
+inspection for legitimate reasons does not have to be done in secret, so this is not really relevant.
+ 
+https://autoriteitpersoonsgegevens.nl/nl/onderwerpen/werk-uitkering/controle-van-personeel
+
 #### Risk assessment when deploying such application in practice:
-When above solution is for instance used in an organization to be able to deep packet inspection it 
-creates a couple of new risks.
+Although the implemented solution makes it possible to inspect SSL traffic in an origanization it introduces some new
+risks to the network. In the following we will assess these new risks on an organization.
 
 The first risk comes from the custom certificate necessary on the client. This brings great responsibility 
 to the organization to keep the CA key safe. If the key gets compromised by someone with bad intentions he
@@ -74,14 +88,15 @@ they are able exercise the same functionality as the `ssl_mitm` application demo
 to read all client data to and from a server in plaintext.
 
 The second risk is that from possibly multiple hosts all data is now visible on a single point, the server that 
-contains the `ssl_mitm` application. If this server gets compromised all data in the network is visible to the 
-intruder.
+contains the `ssl_mitm` application. If this server gets compromised all data in the network is visible in plain text
+to the person accessing the server. The attack could either come from the internet or from one of the clients.
 
 To mitigate the risk of the key being compromised the key should be placed on a different server which only purpose
 is to sign certificates, so only certificates are allowed to (arrive) and leave this system.
 
 In order to mitigate the risk of data compromise when the MiTM server gets compromised it should first of all be
 placed in a DMZ, no other data then should be allowed to flow from or to this MiTM server than SSL data, so no remote
-access. The only risk that this service then has is a bug in the MiTM software that could be exploited trough a 
-malicious SSL packet that is analyzed.
+access, but also no access from any of the clients it monitors, incase any of these get compromized. The only risk 
+that this service then has is a bug in the MiTM software that could be exploited trough a malicious packet that
+is parsed and analyzed.
 
