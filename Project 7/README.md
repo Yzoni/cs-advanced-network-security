@@ -29,9 +29,12 @@ iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 8443
 iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080 
 ```
 
+
 #### Usage:
+The application can be run with python3, no external dependencies are necessary. 
+
 ```bash
-usage: ssl_mitm.py [-h] [--init-ca] [--whitelist WHITELIST [WHITELIST ...]]
+usage: python3 ssl_mitm.py [-h] [--init-ca] [--whitelist WHITELIST [WHITELIST ...]]
 
 SSL MiTM
 
